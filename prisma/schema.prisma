@@ -1,0 +1,469 @@
+// Prisma Schema for HDUA - Herbario Digital Universidad Amazonia
+// Database: PostgreSQL
+// ORM: Prisma 5+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER MANAGEMENT & AUTHENTICATION
+// ============================================
+
+model User {
+  id            String   @id @default(uuid())
+  name          String   @db.VarChar(100)
+  email         String   @unique @db.VarChar(100)
+  password      String?  @db.VarChar(255) // Nullable for OAuth users
+  isCollector   Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  roleId        String
+  genderId      String?
+  typeId        String?
+  institutionId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  role         Role          @relation(fields: [roleId], references: [id])
+  gender       Gender?       @relation(fields: [genderId], references: [id])
+  type         UserType?     @relation(fields: [typeId], references: [id])
+  institution  Institution?  @relation(fields: [institutionId], references: [id])
+  comments     Comment[]
+  specimens    SpecimenCollector[]
+
+  @@index([email])
+  @@index([roleId])
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(50)
+  description String?  @db.Text
+  permissions String[] // Array of permission strings
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users User[]
+
+  @@map("roles")
+}
+
+model Gender {
+  id        String   @id @default(uuid())
+  name      String   @unique @db.VarChar(50)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+
+  @@map("genders")
+}
+
+model UserType {
+  id        String   @id @default(uuid())
+  name      String   @unique @db.VarChar(50)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+
+  @@map("user_types")
+}
+
+model Institution {
+  id        String   @id @default(uuid())
+  name      String   @unique @db.VarChar(200)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+
+  @@map("institutions")
+}
+
+// ============================================
+// SPECIMEN MANAGEMENT (Core Entity)
+// ============================================
+
+model Specimen {
+  id               String    @id @default(uuid())
+  scientificName   String    @db.VarChar(200)
+  commonName       String?   @db.VarChar(200)
+  imageId          String?   @db.VarChar(24) // MongoDB ObjectId reference
+  collectionDate   DateTime?
+  coordinates      String?   @db.VarChar(100)
+  altitude         String?   @db.VarChar(50)
+  isActive         Boolean   @default(true)
+
+  // Taxonomic classification
+  classId      String?
+  orderId      String?
+  familyId     String?
+  genusId      String?
+  speciesId    String?
+  divisionId   String?
+
+  // Location
+  locationId String?
+
+  // Leaf characteristics
+  venationTypeId String?
+  formTypeId     String?
+  marginTypeId   String?
+
+  // Origin
+  originId String?
+
+  // Project
+  projectId String?
+
+  // Additional fields
+  adultsCount      Int?
+  juvenilesCount   Int?
+  conditionId      String?
+  originTypeId     String?
+  minElevation     String? @db.VarChar(50)
+  maxElevation     String? @db.VarChar(50)
+  habitatId        String?
+  localObservation String? @db.Text
+  catalogNumber    String? @db.VarChar(50)
+  registryNumber   String? @db.VarChar(50)
+  author           String? @db.VarChar(200)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  class        Class?         @relation(fields: [classId], references: [id])
+  order        Order?         @relation(fields: [orderId], references: [id])
+  family       Family?        @relation(fields: [familyId], references: [id])
+  genus        Genus?         @relation(fields: [genusId], references: [id])
+  species      Species?       @relation(fields: [speciesId], references: [id])
+  division     Division?      @relation(fields: [divisionId], references: [id])
+  location     Location?      @relation(fields: [locationId], references: [id])
+  venationType VenationType?  @relation(fields: [venationTypeId], references: [id])
+  formType     FormType?      @relation(fields: [formTypeId], references: [id])
+  marginType   MarginType?    @relation(fields: [marginTypeId], references: [id])
+  origin       Origin?        @relation(fields: [originId], references: [id])
+  project      Project?       @relation(fields: [projectId], references: [id])
+  condition    Condition?     @relation(fields: [conditionId], references: [id])
+  originType   OriginType?    @relation(fields: [originTypeId], references: [id])
+  habitat      Habitat?       @relation(fields: [habitatId], references: [id])
+  collectors   SpecimenCollector[]
+  comments     Comment[]
+
+  @@index([scientificName])
+  @@index([commonName])
+  @@index([classId, orderId, familyId, genusId, speciesId])
+  @@index([projectId])
+  @@map("specimens")
+}
+
+model SpecimenCollector {
+  specimenId String   @map("specimen_id")
+  userId     String   @map("user_id")
+  assignedAt DateTime @default(now())
+
+  specimen Specimen @relation(fields: [specimenId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([specimenId, userId])
+  @@map("specimen_collectors")
+}
+
+// ============================================
+// TAXONOMY (Botanical Classification)
+// ============================================
+
+model Class {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  specimens Specimen[]
+
+  @@map("classes")
+}
+
+model Order {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  specimens Specimen[]
+
+  @@map("orders")
+}
+
+model Family {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  specimens Specimen[]
+
+  @@map("families")
+}
+
+model Genus {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  specimens Specimen[]
+
+  @@map("genera")
+}
+
+model Species {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  specimens Specimen[]
+
+  @@map("species")
+}
+
+model Division {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  specimens Specimen[]
+
+  @@map("divisions")
+}
+
+model VenationType {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  specimens Specimen[]
+
+  @@map("venation_types")
+}
+
+model FormType {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  specimens Specimen[]
+
+  @@map("form_types")
+}
+
+model MarginType {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  specimens Specimen[]
+
+  @@map("margin_types")
+}
+
+// ============================================
+// GEOGRAPHIC LOCATIONS
+// ============================================
+
+model Department {
+  id             String         @id @default(uuid())
+  name           String         @unique @db.VarChar(100)
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  municipalities Municipality[]
+
+  @@map("departments")
+}
+
+model Municipality {
+  id           String     @id @default(uuid())
+  name         String     @db.VarChar(100)
+  departmentId String
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  department   Department @relation(fields: [departmentId], references: [id])
+  locations    Location[]
+
+  @@unique([name, departmentId])
+  @@index([departmentId])
+  @@map("municipalities")
+}
+
+model LocationType {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  locations Location[]
+
+  @@map("location_types")
+}
+
+model Location {
+  id             String       @id @default(uuid())
+  name           String       @db.VarChar(200)
+  locationTypeId String
+  municipalityId String
+  waterBody      String?      @db.VarChar(200)
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  locationType   LocationType @relation(fields: [locationTypeId], references: [id])
+  municipality   Municipality @relation(fields: [municipalityId], references: [id])
+  specimens      Specimen[]
+
+  @@index([municipalityId])
+  @@map("locations")
+}
+
+// ============================================
+// PROJECTS & PROTOCOLS
+// ============================================
+
+model Project {
+  id          String    @id @default(uuid())
+  name        String    @unique @db.VarChar(200)
+  startDate   DateTime?
+  endDate     DateTime?
+  effortDays  String?   @db.VarChar(50)
+  observation String?   @db.Text
+  protocolId  String?
+  startTime   String?   @db.VarChar(10)
+  endTime     String?   @db.VarChar(10)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  protocol    Protocol? @relation(fields: [protocolId], references: [id])
+  specimens   Specimen[]
+
+  @@map("projects")
+}
+
+model Protocol {
+  id        String    @id @default(uuid())
+  name      String    @unique @db.VarChar(200)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  projects  Project[]
+
+  @@map("protocols")
+}
+
+// ============================================
+// COMMENTS SYSTEM
+// ============================================
+
+model Comment {
+  id         String   @id @default(uuid())
+  text       String   @db.Text
+  specimenId String
+  userId     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  specimen   Specimen @relation(fields: [specimenId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([specimenId])
+  @@index([userId])
+  @@map("comments")
+}
+
+// ============================================
+// REFERENCE DATA (Catalogs)
+// ============================================
+
+model Origin {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  specimens Specimen[]
+
+  @@map("origins")
+}
+
+model Condition {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  specimens Specimen[]
+
+  @@map("conditions")
+}
+
+model OriginType {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  specimens Specimen[]
+
+  @@map("origin_types")
+}
+
+model Habitat {
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  specimens Specimen[]
+
+  @@map("habitats")
+}
+
+// ============================================
+// IMAGE METADATA (MongoDB reference)
+// ============================================
+
+model ImageMetadata {
+  id            String   @id @default(uuid())
+  mongoId       String   @unique @db.VarChar(24) // MongoDB ObjectId
+  originalName  String   @db.VarChar(255)
+  mimeType      String   @db.VarChar(50)
+  size          Int // Size in bytes
+  width         Int
+  height        Int
+  format        String   @db.VarChar(10) // webp, jpg, png
+  specimenId    String?
+  uploadedBy    String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([mongoId])
+  @@index([specimenId])
+  @@map("image_metadata")
+}
