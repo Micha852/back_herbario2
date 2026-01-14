@@ -445,6 +445,22 @@ model Habitat {
 }
 
 // ============================================
+// SYSTEM INFORMATION (CMS)
+// ============================================
+
+model SystemInfo {
+  id          String   @id @default(uuid())
+  key         String   @unique @db.VarChar(50) // history, data, contacts, terms
+  title       String   @db.VarChar(200)
+  content     String   @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_info")
+}
+
+// ============================================
 // IMAGE METADATA (MongoDB reference)
 // ============================================
 

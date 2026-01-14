@@ -15,6 +15,7 @@ import {
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto, LoginResponseDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public } from './decorators/public.decorator';
@@ -108,5 +109,63 @@ export class AuthController {
   })
   getProfile(@CurrentUser() user: UserEntity): UserEntity {
     return user;
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @ApiOperation({
+    summary: 'Request password recovery',
+    description: 'Sends a temporary password to the user email',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Recovery email sent if account exists',
+  })
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('change-password')
+  @ApiOperation({
+    summary: 'Change password',
+    description: 'Change password for authenticated user',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Password changed successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Current password incorrect',
+  })
+  async changePassword(
+    @CurrentUser() user: UserEntity,
+    @Body('currentPassword') currentPassword: string,
+    @Body('newPassword') newPassword: string,
+  ): Promise<{ message: string }> {
+    return this.authService.changePassword(user.id, currentPassword, newPassword);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('verify-password')
+  @ApiOperation({
+    summary: 'Verify current password',
+    description: 'Verify if the provided password is correct (for profile security)',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Returns true if password is correct',
+  })
+  async verifyPassword(
+    @CurrentUser() user: UserEntity,
+    @Body('password') password: string,
+  ): Promise<{ valid: boolean }> {
+    const valid = await this.authService.verifyPassword(user.id, password);
+    return { valid };
   }
 }
