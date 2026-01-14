@@ -4,31 +4,37 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Image, ImageDocument } from './entities/image.entity';
+import { PrismaService } from '../../database/prisma.service';
 import { LocalStorageService } from './storage/local-storage.service';
 import { ImageProcessingService } from './processors/image-processing.service';
 import { UploadImageResponseDto } from './dto/upload-image.dto';
 import { TransformImageDto } from './dto/transform-image.dto';
+
+export interface ImageVersions {
+  original: { path: string; size: number; width?: number; height?: number };
+  thumbnail?: { path: string; size: number; width?: number; height?: number };
+  medium?: { path: string; size: number; width?: number; height?: number };
+  large?: { path: string; size: number; width?: number; height?: number };
+}
 
 @Injectable()
 export class ImagesService {
   private readonly logger = new Logger(ImagesService.name);
 
   constructor(
-    @InjectModel(Image.name) private imageModel: Model<ImageDocument>,
+    private prisma: PrismaService,
     private storageService: LocalStorageService,
     private processingService: ImageProcessingService,
   ) {}
 
   /**
-   * Upload image with multiple versions (like Cloudinary)
+   * Upload image with multiple versions (Cloudinary-like service)
    */
   async uploadImage(
     file: Express.Multer.File,
     specimenId: string | undefined,
     uploadedBy: string,
+    imageType: string = 'general',
   ): Promise<UploadImageResponseDto> {
     try {
       // Validate image
@@ -41,9 +47,7 @@ export class ImagesService {
       const metadata = await this.processingService.getMetadata(file.buffer);
 
       // Generate multiple versions
-      const versions = await this.processingService.generateVersions(
-        file.buffer,
-      );
+      const versions = await this.processingService.generateVersions(file.buffer);
 
       // Save all versions to disk
       const savedVersions = await this.storageService.saveMultipleVersions(
@@ -51,55 +55,59 @@ export class ImagesService {
         file.originalname,
       );
 
-      // Get dimensions for each version
-      const versionsWithDimensions = {
-        original: {
-          ...savedVersions.original,
+      // Save metadata to PostgreSQL
+      const image = await this.prisma.specimenImage.create({
+        data: {
+          specimenId: specimenId || null,
+          fileName: savedVersions.original.filename,
+          originalName: file.originalname,
+          filePath: savedVersions.original.path,
+          mimeType: file.mimetype,
+          size: file.size,
           width: metadata.width,
           height: metadata.height,
+          thumbnailPath: savedVersions.thumbnail?.path || null,
+          mediumPath: savedVersions.medium?.path || null,
+          largePath: savedVersions.large?.path || null,
+          imageType,
+          isPrimary: false,
+          isActive: true,
         },
-        thumbnail: {
-          ...savedVersions.thumbnail!,
-          ...(await this.processingService.getMetadata(
-            versions.get('thumbnail')!,
-          )),
-        },
-        medium: {
-          ...savedVersions.medium!,
-          ...(await this.processingService.getMetadata(versions.get('medium')!)),
-        },
-        large: {
-          ...savedVersions.large!,
-          ...(await this.processingService.getMetadata(versions.get('large')!)),
-        },
-      };
-
-      // Save metadata to MongoDB
-      const imageDoc = new this.imageModel({
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size,
-        width: metadata.width,
-        height: metadata.height,
-        format: metadata.format,
-        specimenId,
-        uploadedBy,
-        versions: versionsWithDimensions,
-        isActive: true,
       });
 
-      const savedImage = await imageDoc.save();
-
-      this.logger.log(
-        `Image uploaded: ${savedImage.id} (${versions.size} versions)`,
-      );
+      this.logger.log(`Image uploaded: ${image.id} (${versions.size} versions)`);
 
       return {
-        id: savedImage.id,
-        versions: versionsWithDimensions,
+        id: image.id,
+        versions: {
+          original: {
+            path: `/images/${image.id}`,
+            size: file.size,
+            width: metadata.width,
+            height: metadata.height,
+          },
+          thumbnail: savedVersions.thumbnail
+            ? {
+                path: `/images/${image.id}?version=thumbnail`,
+                size: savedVersions.thumbnail.size,
+              }
+            : undefined,
+          medium: savedVersions.medium
+            ? {
+                path: `/images/${image.id}?version=medium`,
+                size: savedVersions.medium.size,
+              }
+            : undefined,
+          large: savedVersions.large
+            ? {
+                path: `/images/${image.id}?version=large`,
+                size: savedVersions.large.size,
+              }
+            : undefined,
+        },
         originalName: file.originalname,
         mimeType: file.mimetype,
-        uploadedAt: savedImage['createdAt'],
+        uploadedAt: image.createdAt,
       };
     } catch (error) {
       this.logger.error(`Failed to upload image: ${error.message}`);
@@ -110,16 +118,21 @@ export class ImagesService {
   /**
    * Get image metadata by ID
    */
-  async getImage(id: string): Promise<ImageDocument> {
-    const image = await this.imageModel.findById(id).exec();
-    if (!image) {
+  async getImage(id: string) {
+    const image = await this.prisma.specimenImage.findUnique({
+      where: { id },
+    });
+
+    if (!image || !image.isActive) {
       throw new NotFoundException(`Image with ID ${id} not found`);
     }
+
     return image;
   }
 
   /**
-   * Get image file with optional transformations (like Cloudinary)
+   * Get image file with optional transformations (Cloudinary-like)
+   * This is the core of the local Cloudinary service
    */
   async getImageFile(
     id: string,
@@ -128,25 +141,48 @@ export class ImagesService {
   ): Promise<{ buffer: Buffer; mimeType: string }> {
     const image = await this.getImage(id);
 
-    // Get the requested version path
-    const versionData = image.versions[version];
-    if (!versionData) {
-      throw new NotFoundException(`Version ${version} not found`);
+    // Determine which path to use based on version
+    let filePath: string;
+    switch (version) {
+      case 'thumbnail':
+        filePath = image.thumbnailPath || image.filePath;
+        break;
+      case 'medium':
+        filePath = image.mediumPath || image.filePath;
+        break;
+      case 'large':
+        filePath = image.largePath || image.filePath;
+        break;
+      default:
+        filePath = image.filePath;
     }
 
     // Read file from disk
-    let buffer = await this.storageService.getFile(versionData.path);
+    let buffer = await this.storageService.getFile(filePath);
 
-    // Apply transformations if requested
-    if (transformations && Object.keys(transformations).length > 0) {
+    // Apply on-the-fly transformations if requested (like Cloudinary)
+    if (transformations && this.hasTransformations(transformations)) {
       buffer = await this.processingService.transform(buffer, transformations);
     }
 
-    // Determine MIME type based on format
+    // Determine MIME type
     const format = transformations?.format || 'webp';
     const mimeType = `image/${format}`;
 
     return { buffer, mimeType };
+  }
+
+  /**
+   * Check if transformations object has any actual transformations
+   */
+  private hasTransformations(transformations: TransformImageDto): boolean {
+    return !!(
+      transformations.width ||
+      transformations.height ||
+      transformations.quality ||
+      transformations.format ||
+      transformations.crop
+    );
   }
 
   /**
@@ -155,38 +191,100 @@ export class ImagesService {
   async deleteImage(id: string): Promise<void> {
     const image = await this.getImage(id);
 
-    // Delete all files from disk
-    await this.storageService.deleteAllVersions(image.versions);
+    // Collect all file paths
+    const pathsToDelete = [image.filePath];
+    if (image.thumbnailPath) pathsToDelete.push(image.thumbnailPath);
+    if (image.mediumPath) pathsToDelete.push(image.mediumPath);
+    if (image.largePath) pathsToDelete.push(image.largePath);
 
-    // Delete from MongoDB
-    await this.imageModel.findByIdAndDelete(id).exec();
+    // Delete all files from disk
+    for (const path of pathsToDelete) {
+      try {
+        await this.storageService.deleteFile(path);
+      } catch (error) {
+        this.logger.warn(`Failed to delete file ${path}: ${error.message}`);
+      }
+    }
+
+    // Soft delete from database
+    await this.prisma.specimenImage.update({
+      where: { id },
+      data: { isActive: false },
+    });
 
     this.logger.log(`Image deleted: ${id}`);
   }
 
   /**
-   * Get images by specimen ID
+   * Hard delete (remove from database completely)
    */
-  async getImagesBySpecimen(specimenId: string): Promise<ImageDocument[]> {
-    return this.imageModel.find({ specimenId, isActive: true }).exec();
+  async hardDeleteImage(id: string): Promise<void> {
+    const image = await this.getImage(id);
+
+    // Delete files
+    const pathsToDelete = [image.filePath];
+    if (image.thumbnailPath) pathsToDelete.push(image.thumbnailPath);
+    if (image.mediumPath) pathsToDelete.push(image.mediumPath);
+    if (image.largePath) pathsToDelete.push(image.largePath);
+
+    for (const path of pathsToDelete) {
+      try {
+        await this.storageService.deleteFile(path);
+      } catch (error) {
+        this.logger.warn(`Failed to delete file ${path}: ${error.message}`);
+      }
+    }
+
+    // Delete from database
+    await this.prisma.specimenImage.delete({
+      where: { id },
+    });
+
+    this.logger.log(`Image hard deleted: ${id}`);
   }
 
   /**
-   * Update specimen association
+   * Get images by specimen ID
    */
-  async updateSpecimenAssociation(
-    imageId: string,
-    specimenId: string,
-  ): Promise<ImageDocument> {
-    const image = await this.imageModel
-      .findByIdAndUpdate(imageId, { specimenId }, { new: true })
-      .exec();
+  async getImagesBySpecimen(specimenId: string) {
+    return this.prisma.specimenImage.findMany({
+      where: { specimenId, isActive: true },
+      orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+    });
+  }
 
-    if (!image) {
-      throw new NotFoundException(`Image with ID ${imageId} not found`);
-    }
+  /**
+   * Set primary image for specimen
+   */
+  async setPrimaryImage(imageId: string, specimenId: string): Promise<void> {
+    // First, unset all primary images for this specimen
+    await this.prisma.specimenImage.updateMany({
+      where: { specimenId, isPrimary: true },
+      data: { isPrimary: false },
+    });
 
-    return image;
+    // Set the new primary
+    await this.prisma.specimenImage.update({
+      where: { id: imageId },
+      data: { isPrimary: true },
+    });
+  }
+
+  /**
+   * Update image metadata
+   */
+  async updateImage(
+    id: string,
+    data: {
+      caption?: string;
+      imageType?: string;
+      sortOrder?: number;
+    },
+  ) {
+    return this.prisma.specimenImage.update({
+      where: { id },
+      data,
+    });
   }
 
   /**
@@ -198,17 +296,54 @@ export class ImagesService {
     totalSize: number;
     averageSize: number;
   }> {
-    const totalImages = await this.imageModel.countDocuments({ isActive: true });
+    const totalImages = await this.prisma.specimenImage.count({
+      where: { isActive: true },
+    });
+
+    const sizeAgg = await this.prisma.specimenImage.aggregate({
+      where: { isActive: true },
+      _sum: { size: true },
+    });
+
+    const totalSize = sizeAgg._sum.size || 0;
     const storageStats = await this.storageService.getStorageStats();
 
     return {
       totalImages,
       totalFiles: storageStats.totalFiles,
-      totalSize: storageStats.totalSize,
-      averageSize:
-        totalImages > 0
-          ? Math.round(storageStats.totalSize / totalImages)
-          : 0,
+      totalSize,
+      averageSize: totalImages > 0 ? Math.round(totalSize / totalImages) : 0,
     };
+  }
+
+  /**
+   * Get URL for image (Cloudinary-like URL generation)
+   */
+  getImageUrl(
+    imageId: string,
+    options?: {
+      version?: 'original' | 'thumbnail' | 'medium' | 'large';
+      width?: number;
+      height?: number;
+      format?: 'webp' | 'jpeg' | 'png';
+      quality?: number;
+    },
+  ): string {
+    let url = `/images/${imageId}`;
+    const params: string[] = [];
+
+    if (options?.version && options.version !== 'original') {
+      params.push(`version=${options.version}`);
+    }
+    if (options?.width) params.push(`width=${options.width}`);
+    if (options?.height) params.push(`height=${options.height}`);
+    if (options?.format) params.push(`format=${options.format}`);
+    if (options?.quality) params.push(`quality=${options.quality}`);
+
+    if (params.length > 0) {
+      url += '?' + params.join('&');
+    }
+
+    return url;
   }
 }

@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export interface StorageResult {
   path: string;
+  filename: string;
   url: string;
   size: number;
 }
@@ -69,6 +70,7 @@ export class LocalStorageService {
 
       return {
         path: relativePath.replace(/\\/g, '/'), // Normalize path separators
+        filename: filename,
         url: `${this.baseUrl}/uploads/${relativePath.replace(/\\/g, '/')}`,
         size: stats.size,
       };

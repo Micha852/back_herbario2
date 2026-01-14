@@ -234,6 +234,28 @@ export class UsersService {
   }
 
   /**
+   * Update password directly (for password recovery)
+   */
+  async updatePassword(id: string, hashedPassword: string): Promise<void> {
+    await this.findOne(id);
+    await this.prisma.user.update({
+      where: { id },
+      data: { password: hashedPassword },
+    });
+  }
+
+  /**
+   * Deactivate own profile
+   */
+  async deactivateProfile(id: string): Promise<void> {
+    await this.findOne(id);
+    await this.prisma.user.update({
+      where: { id },
+      data: { isActive: false },
+    });
+  }
+
+  /**
    * Validate user credentials (for authentication)
    */
   async validateCredentials(
