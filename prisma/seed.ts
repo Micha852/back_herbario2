@@ -10,7 +10,7 @@ async function main() {
   console.log('Cleaning existing data...');
   await prisma.comment.deleteMany();
   await prisma.specimenCollector.deleteMany();
-  await prisma.imageMetadata.deleteMany();
+  await prisma.specimenImage.deleteMany();
   await prisma.specimen.deleteMany();
   await prisma.project.deleteMany();
   await prisma.protocol.deleteMany();
@@ -31,6 +31,7 @@ async function main() {
   await prisma.condition.deleteMany();
   await prisma.origin.deleteMany();
   await prisma.locationType.deleteMany();
+  await prisma.catalogCounter.deleteMany();
   await prisma.user.deleteMany();
   await prisma.role.deleteMany();
   await prisma.gender.deleteMany();
@@ -114,148 +115,286 @@ async function main() {
   });
   console.log('✅ Institutions created');
 
-  // ========== TAXONOMY: DIVISIONS ==========
-  console.log('Seeding taxonomy - divisions...');
-  await prisma.division.createMany({
-    data: [
-      { name: 'Magnoliophyta' },
-      { name: 'Pinophyta' },
-      { name: 'Pteridophyta' },
-      { name: 'Bryophyta' },
-      { name: 'Marchantiophyta' },
-    ],
+  // ========== CATALOG COUNTER ==========
+  console.log('Seeding catalog counter...');
+  await prisma.catalogCounter.create({
+    data: {
+      prefix: 'HUAZ',
+      lastNumber: 0,
+    },
   });
-  console.log('✅ Divisions created');
+  console.log('✅ Catalog counter created');
 
-  // ========== TAXONOMY: CLASSES ==========
-  console.log('Seeding taxonomy - classes...');
-  await prisma.class.createMany({
-    data: [
-      { name: 'Magnoliopsida' },
-      { name: 'Liliopsida' },
-      { name: 'Polypodiopsida' },
-      { name: 'Pinopsida' },
-    ],
-  });
-  console.log('✅ Classes created');
+  // ========== TAXONOMY: HIERARCHICAL STRUCTURE ==========
+  console.log('Seeding taxonomy with hierarchical structure...');
 
-  // ========== TAXONOMY: ORDERS ==========
-  console.log('Seeding taxonomy - orders...');
-  await prisma.order.createMany({
-    data: [
-      { name: 'Fabales' },
-      { name: 'Myrtales' },
-      { name: 'Lamiales' },
-      { name: 'Asterales' },
-      { name: 'Rosales' },
-      { name: 'Malpighiales' },
-      { name: 'Sapindales' },
-      { name: 'Laurales' },
-      { name: 'Magnoliales' },
-      { name: 'Poales' },
-      { name: 'Arecales' },
-      { name: 'Zingiberales' },
-      { name: 'Polypodiales' },
-    ],
+  // DIVISIONS (highest rank)
+  const magnoliophyta = await prisma.division.create({
+    data: { name: 'Magnoliophyta', description: 'Plantas con flores (angiospermas)' },
   });
-  console.log('✅ Orders created');
+  const pinophyta = await prisma.division.create({
+    data: { name: 'Pinophyta', description: 'Coníferas' },
+  });
+  const pteridophyta = await prisma.division.create({
+    data: { name: 'Pteridophyta', description: 'Helechos' },
+  });
+  await prisma.division.create({
+    data: { name: 'Bryophyta', description: 'Musgos' },
+  });
 
-  // ========== TAXONOMY: FAMILIES ==========
-  console.log('Seeding taxonomy - families...');
-  await prisma.family.createMany({
-    data: [
-      { name: 'Fabaceae' },
-      { name: 'Myrtaceae' },
-      { name: 'Melastomataceae' },
-      { name: 'Bignoniaceae' },
-      { name: 'Lamiaceae' },
-      { name: 'Asteraceae' },
-      { name: 'Moraceae' },
-      { name: 'Urticaceae' },
-      { name: 'Euphorbiaceae' },
-      { name: 'Clusiaceae' },
-      { name: 'Meliaceae' },
-      { name: 'Anacardiaceae' },
-      { name: 'Lauraceae' },
-      { name: 'Annonaceae' },
-      { name: 'Poaceae' },
-      { name: 'Arecaceae' },
-      { name: 'Musaceae' },
-      { name: 'Heliconiaceae' },
-      { name: 'Polypodiaceae' },
-    ],
+  // CLASSES (linked to divisions)
+  const magnoliopsida = await prisma.class.create({
+    data: {
+      name: 'Magnoliopsida',
+      description: 'Dicotiledóneas',
+      divisionId: magnoliophyta.id,
+    },
   });
-  console.log('✅ Families created');
+  const liliopsida = await prisma.class.create({
+    data: {
+      name: 'Liliopsida',
+      description: 'Monocotiledóneas',
+      divisionId: magnoliophyta.id,
+    },
+  });
+  const polypodiopsida = await prisma.class.create({
+    data: {
+      name: 'Polypodiopsida',
+      description: 'Helechos leptosporangiados',
+      divisionId: pteridophyta.id,
+    },
+  });
+  await prisma.class.create({
+    data: {
+      name: 'Pinopsida',
+      description: 'Coníferas',
+      divisionId: pinophyta.id,
+    },
+  });
 
-  // ========== TAXONOMY: GENERA ==========
-  console.log('Seeding taxonomy - genera...');
-  await prisma.genus.createMany({
-    data: [
-      { name: 'Inga' },
-      { name: 'Acacia' },
-      { name: 'Psidium' },
-      { name: 'Eugenia' },
-      { name: 'Miconia' },
-      { name: 'Tabebuia' },
-      { name: 'Handroanthus' },
-      { name: 'Ocimum' },
-      { name: 'Ficus' },
-      { name: 'Cecropia' },
-      { name: 'Croton' },
-      { name: 'Hevea' },
-      { name: 'Clusia' },
-      { name: 'Cedrela' },
-      { name: 'Swietenia' },
-      { name: 'Mangifera' },
-      { name: 'Ocotea' },
-      { name: 'Persea' },
-      { name: 'Annona' },
-      { name: 'Bambusa' },
-      { name: 'Oryza' },
-      { name: 'Euterpe' },
-      { name: 'Mauritia' },
-      { name: 'Musa' },
-      { name: 'Heliconia' },
-    ],
+  // ORDERS (linked to classes)
+  const fabales = await prisma.order.create({
+    data: { name: 'Fabales', classId: magnoliopsida.id },
   });
-  console.log('✅ Genera created');
+  const myrtales = await prisma.order.create({
+    data: { name: 'Myrtales', classId: magnoliopsida.id },
+  });
+  const lamiales = await prisma.order.create({
+    data: { name: 'Lamiales', classId: magnoliopsida.id },
+  });
+  const asterales = await prisma.order.create({
+    data: { name: 'Asterales', classId: magnoliopsida.id },
+  });
+  const rosales = await prisma.order.create({
+    data: { name: 'Rosales', classId: magnoliopsida.id },
+  });
+  const malpighiales = await prisma.order.create({
+    data: { name: 'Malpighiales', classId: magnoliopsida.id },
+  });
+  const sapindales = await prisma.order.create({
+    data: { name: 'Sapindales', classId: magnoliopsida.id },
+  });
+  const laurales = await prisma.order.create({
+    data: { name: 'Laurales', classId: magnoliopsida.id },
+  });
+  const magnoliales = await prisma.order.create({
+    data: { name: 'Magnoliales', classId: magnoliopsida.id },
+  });
+  const poales = await prisma.order.create({
+    data: { name: 'Poales', classId: liliopsida.id },
+  });
+  const arecales = await prisma.order.create({
+    data: { name: 'Arecales', classId: liliopsida.id },
+  });
+  const zingiberales = await prisma.order.create({
+    data: { name: 'Zingiberales', classId: liliopsida.id },
+  });
+  const polypodiales = await prisma.order.create({
+    data: { name: 'Polypodiales', classId: polypodiopsida.id },
+  });
 
-  // ========== TAXONOMY: SPECIES ==========
-  console.log('Seeding taxonomy - species...');
-  await prisma.species.createMany({
-    data: [
-      { name: 'edulis' },
-      { name: 'vera' },
-      { name: 'guajava' },
-      { name: 'stipitata' },
-      { name: 'rosea' },
-      { name: 'chrysantha' },
-      { name: 'serratus' },
-      { name: 'basilicum' },
-      { name: 'insipida' },
-      { name: 'obtusifolia' },
-      { name: 'peltata' },
-      { name: 'sciadophylla' },
-      { name: 'lechleri' },
-      { name: 'brasiliensis' },
-      { name: 'odorata' },
-      { name: 'macrophylla' },
-      { name: 'indica' },
-      { name: 'quixos' },
-      { name: 'americana' },
-      { name: 'muricata' },
-      { name: 'cherimola' },
-      { name: 'vulgaris' },
-      { name: 'sativa' },
-      { name: 'precatoria' },
-      { name: 'oleracea' },
-      { name: 'flexuosa' },
-      { name: 'paradisiaca' },
-      { name: 'rostrata' },
-      { name: 'stricta' },
-    ],
+  // FAMILIES (linked to orders)
+  const fabaceae = await prisma.family.create({
+    data: { name: 'Fabaceae', orderId: fabales.id },
   });
-  console.log('✅ Species created');
+  const myrtaceae = await prisma.family.create({
+    data: { name: 'Myrtaceae', orderId: myrtales.id },
+  });
+  const melastomataceae = await prisma.family.create({
+    data: { name: 'Melastomataceae', orderId: myrtales.id },
+  });
+  const bignoniaceae = await prisma.family.create({
+    data: { name: 'Bignoniaceae', orderId: lamiales.id },
+  });
+  const lamiaceae = await prisma.family.create({
+    data: { name: 'Lamiaceae', orderId: lamiales.id },
+  });
+  const asteraceae = await prisma.family.create({
+    data: { name: 'Asteraceae', orderId: asterales.id },
+  });
+  const moraceae = await prisma.family.create({
+    data: { name: 'Moraceae', orderId: rosales.id },
+  });
+  const urticaceae = await prisma.family.create({
+    data: { name: 'Urticaceae', orderId: rosales.id },
+  });
+  const euphorbiaceae = await prisma.family.create({
+    data: { name: 'Euphorbiaceae', orderId: malpighiales.id },
+  });
+  const clusiaceae = await prisma.family.create({
+    data: { name: 'Clusiaceae', orderId: malpighiales.id },
+  });
+  const meliaceae = await prisma.family.create({
+    data: { name: 'Meliaceae', orderId: sapindales.id },
+  });
+  const anacardiaceae = await prisma.family.create({
+    data: { name: 'Anacardiaceae', orderId: sapindales.id },
+  });
+  const lauraceae = await prisma.family.create({
+    data: { name: 'Lauraceae', orderId: laurales.id },
+  });
+  const annonaceae = await prisma.family.create({
+    data: { name: 'Annonaceae', orderId: magnoliales.id },
+  });
+  const poaceae = await prisma.family.create({
+    data: { name: 'Poaceae', orderId: poales.id },
+  });
+  const arecaceae = await prisma.family.create({
+    data: { name: 'Arecaceae', orderId: arecales.id },
+  });
+  const musaceae = await prisma.family.create({
+    data: { name: 'Musaceae', orderId: zingiberales.id },
+  });
+  const heliconiaceae = await prisma.family.create({
+    data: { name: 'Heliconiaceae', orderId: zingiberales.id },
+  });
+  const polypodiaceae = await prisma.family.create({
+    data: { name: 'Polypodiaceae', orderId: polypodiales.id },
+  });
+
+  // GENERA (linked to families) - Common Amazonian genera
+  const inga = await prisma.genus.create({
+    data: { name: 'Inga', familyId: fabaceae.id },
+  });
+  await prisma.genus.create({
+    data: { name: 'Acacia', familyId: fabaceae.id },
+  });
+  const psidium = await prisma.genus.create({
+    data: { name: 'Psidium', familyId: myrtaceae.id },
+  });
+  await prisma.genus.create({
+    data: { name: 'Eugenia', familyId: myrtaceae.id },
+  });
+  await prisma.genus.create({
+    data: { name: 'Miconia', familyId: melastomataceae.id },
+  });
+  await prisma.genus.create({
+    data: { name: 'Tabebuia', familyId: bignoniaceae.id },
+  });
+  const handroanthus = await prisma.genus.create({
+    data: { name: 'Handroanthus', familyId: bignoniaceae.id },
+  });
+  await prisma.genus.create({
+    data: { name: 'Ocimum', familyId: lamiaceae.id },
+  });
+  const ficus = await prisma.genus.create({
+    data: { name: 'Ficus', familyId: moraceae.id },
+  });
+  const cecropia = await prisma.genus.create({
+    data: { name: 'Cecropia', familyId: urticaceae.id },
+  });
+  await prisma.genus.create({
+    data: { name: 'Croton', familyId: euphorbiaceae.id },
+  });
+  const hevea = await prisma.genus.create({
+    data: { name: 'Hevea', familyId: euphorbiaceae.id },
+  });
+  await prisma.genus.create({
+    data: { name: 'Clusia', familyId: clusiaceae.id },
+  });
+  const cedrela = await prisma.genus.create({
+    data: { name: 'Cedrela', familyId: meliaceae.id },
+  });
+  await prisma.genus.create({
+    data: { name: 'Swietenia', familyId: meliaceae.id },
+  });
+  await prisma.genus.create({
+    data: { name: 'Mangifera', familyId: anacardiaceae.id },
+  });
+  await prisma.genus.create({
+    data: { name: 'Ocotea', familyId: lauraceae.id },
+  });
+  await prisma.genus.create({
+    data: { name: 'Persea', familyId: lauraceae.id },
+  });
+  const annona = await prisma.genus.create({
+    data: { name: 'Annona', familyId: annonaceae.id },
+  });
+  await prisma.genus.create({
+    data: { name: 'Bambusa', familyId: poaceae.id },
+  });
+  await prisma.genus.create({
+    data: { name: 'Oryza', familyId: poaceae.id },
+  });
+  const euterpe = await prisma.genus.create({
+    data: { name: 'Euterpe', familyId: arecaceae.id },
+  });
+  const mauritia = await prisma.genus.create({
+    data: { name: 'Mauritia', familyId: arecaceae.id },
+  });
+  const musa = await prisma.genus.create({
+    data: { name: 'Musa', familyId: musaceae.id },
+  });
+  const heliconia = await prisma.genus.create({
+    data: { name: 'Heliconia', familyId: heliconiaceae.id },
+  });
+
+  // SPECIES (linked to genera) - Common Amazonian species
+  // epithet = specific epithet only (e.g., "muricata" for Annona muricata)
+  await prisma.species.create({
+    data: { epithet: 'edulis', genusId: inga.id, author: 'Mart.', fullName: 'Inga edulis Mart.' },
+  });
+  await prisma.species.create({
+    data: { epithet: 'guajava', genusId: psidium.id, author: 'L.', fullName: 'Psidium guajava L.' },
+  });
+  await prisma.species.create({
+    data: { epithet: 'serratifolius', genusId: handroanthus.id, author: '(Vahl) S.Grose', fullName: 'Handroanthus serratifolius (Vahl) S.Grose' },
+  });
+  await prisma.species.create({
+    data: { epithet: 'insipida', genusId: ficus.id, author: 'Willd.', fullName: 'Ficus insipida Willd.' },
+  });
+  await prisma.species.create({
+    data: { epithet: 'peltata', genusId: cecropia.id, author: 'L.', fullName: 'Cecropia peltata L.' },
+  });
+  await prisma.species.create({
+    data: { epithet: 'brasiliensis', genusId: hevea.id, author: '(Willd. ex A.Juss.) Müll.Arg.', fullName: 'Hevea brasiliensis (Willd. ex A.Juss.) Müll.Arg.' },
+  });
+  await prisma.species.create({
+    data: { epithet: 'odorata', genusId: cedrela.id, author: 'L.', fullName: 'Cedrela odorata L.' },
+  });
+  await prisma.species.create({
+    data: { epithet: 'muricata', genusId: annona.id, author: 'L.', fullName: 'Annona muricata L.' },
+  });
+  await prisma.species.create({
+    data: { epithet: 'precatoria', genusId: euterpe.id, author: 'Mart.', fullName: 'Euterpe precatoria Mart.' },
+  });
+  await prisma.species.create({
+    data: { epithet: 'oleracea', genusId: euterpe.id, author: 'Mart.', fullName: 'Euterpe oleracea Mart.' },
+  });
+  await prisma.species.create({
+    data: { epithet: 'flexuosa', genusId: mauritia.id, author: 'L.f.', fullName: 'Mauritia flexuosa L.f.' },
+  });
+  await prisma.species.create({
+    data: { epithet: 'paradisiaca', genusId: musa.id, author: 'L.', fullName: 'Musa paradisiaca L.' },
+  });
+  await prisma.species.create({
+    data: { epithet: 'rostrata', genusId: heliconia.id, author: 'Ruiz & Pav.', fullName: 'Heliconia rostrata Ruiz & Pav.' },
+  });
+  await prisma.species.create({
+    data: { epithet: 'stricta', genusId: heliconia.id, author: 'Huber', fullName: 'Heliconia stricta Huber' },
+  });
+
+  console.log('✅ Hierarchical taxonomy created');
 
   // ========== LEAF CHARACTERISTICS ==========
   console.log('Seeding leaf characteristics...');

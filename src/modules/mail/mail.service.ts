@@ -19,6 +19,29 @@ export class MailService {
     });
   }
 
+  /**
+   * Generic send mail method
+   */
+  async sendMail(options: {
+    to: string;
+    subject: string;
+    html: string;
+    from?: string;
+  }): Promise<void> {
+    try {
+      await this.transporter.sendMail({
+        from: options.from || this.configService.get<string>('MAIL_FROM') || 'noreply@hdua.com',
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+      });
+      this.logger.log(`Email sent to ${options.to}`);
+    } catch (error) {
+      this.logger.error(`Failed to send email to ${options.to}: ${error.message}`);
+      throw error;
+    }
+  }
+
   async sendPasswordRecovery(email: string, token: string): Promise<void> {
     const appUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3000';
     const resetLink = `${appUrl}/reset-password?token=${token}`;

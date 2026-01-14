@@ -5,6 +5,7 @@ import {
 import { PrismaService } from '../../database/prisma.service';
 import { CreateSpecimenDto } from './dto/create-specimen.dto';
 import { SearchSpecimenDto } from './dto/search-specimen.dto';
+import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class SpecimensService {
@@ -40,15 +41,50 @@ export class SpecimensService {
       include: { user: true },
       orderBy: { createdAt: 'desc' as const },
     },
+    images: {
+      where: { isActive: true },
+      orderBy: [{ isPrimary: 'desc' as const }, { sortOrder: 'asc' as const }],
+    },
   };
 
+  /**
+   * Generate next catalog number (e.g., HUAZ-000001)
+   */
+  private async generateCatalogNumber(): Promise<string> {
+    const counter = await this.prisma.catalogCounter.findFirst({
+      where: { prefix: 'HUAZ' },
+    });
+
+    if (!counter) {
+      // Create counter if not exists
+      const newCounter = await this.prisma.catalogCounter.create({
+        data: { prefix: 'HUAZ', lastNumber: 1 },
+      });
+      return `HUAZ-${String(newCounter.lastNumber).padStart(6, '0')}`;
+    }
+
+    // Increment counter
+    const updated = await this.prisma.catalogCounter.update({
+      where: { id: counter.id },
+      data: { lastNumber: counter.lastNumber + 1 },
+    });
+
+    return `HUAZ-${String(updated.lastNumber).padStart(6, '0')}`;
+  }
+
   async create(dto: CreateSpecimenDto) {
-    const { collectorIds, collectionDate, ...data } = dto;
+    const { collectorIds, collectionDate, latitude, longitude, ...data } = dto;
+
+    // Generate catalog number if not provided
+    const catalogNumber = dto.catalogNumber || await this.generateCatalogNumber();
 
     const specimen = await this.prisma.specimen.create({
       data: {
         ...data,
+        catalogNumber,
         collectionDate: collectionDate ? new Date(collectionDate) : null,
+        latitude: latitude !== undefined ? new Decimal(latitude) : null,
+        longitude: longitude !== undefined ? new Decimal(longitude) : null,
         isActive: dto.isActive ?? true,
       },
       include: this.includeRelations,
@@ -157,13 +193,15 @@ export class SpecimensService {
   async update(id: string, dto: Partial<CreateSpecimenDto>) {
     await this.findOne(id);
 
-    const { collectorIds, collectionDate, ...data } = dto;
+    const { collectorIds, collectionDate, latitude, longitude, ...data } = dto;
 
     const specimen = await this.prisma.specimen.update({
       where: { id },
       data: {
         ...data,
         collectionDate: collectionDate ? new Date(collectionDate) : undefined,
+        latitude: latitude !== undefined ? new Decimal(latitude) : undefined,
+        longitude: longitude !== undefined ? new Decimal(longitude) : undefined,
       },
       include: this.includeRelations,
     });

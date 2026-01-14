@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { MongooseModule } from '@nestjs/mongoose';
+import { ConfigModule } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { join } from 'path';
@@ -32,18 +31,7 @@ import { InfoModule } from './modules/info/info.module';
       envFilePath: '.env',
     }),
 
-    // MongoDB connection for images
-    MongooseModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        uri:
-          configService.get<string>('MONGODB_URI') ||
-          'mongodb://localhost:27017/herbario_images',
-      }),
-      inject: [ConfigService],
-    }),
-
-    // Serve static files (uploads)
+    // Serve static files (uploads - for local Cloudinary-like service)
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
@@ -52,8 +40,8 @@ import { InfoModule } from './modules/info/info.module';
     // Rate limiting
     ThrottlerModule.forRoot([
       {
-        ttl: 60000, // 60 seconds
-        limit: 100, // 100 requests per minute
+        ttl: 60000,
+        limit: 100,
       },
     ]),
 

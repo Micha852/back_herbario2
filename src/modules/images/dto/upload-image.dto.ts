@@ -19,15 +19,15 @@ export class UploadImageDto {
 }
 
 export class UploadImageResponseDto {
-  @ApiProperty({ description: 'MongoDB ID of the uploaded image' })
+  @ApiProperty({ description: 'UUID of the uploaded image' })
   id: string;
 
   @ApiProperty({ description: 'URLs for different versions' })
   versions: {
     original: ImageVersionDto;
-    thumbnail: ImageVersionDto;
-    medium: ImageVersionDto;
-    large: ImageVersionDto;
+    thumbnail?: ImageVersionDto;
+    medium?: ImageVersionDto;
+    large?: ImageVersionDto;
   };
 
   @ApiProperty({ description: 'Original filename' })
@@ -41,18 +41,15 @@ export class UploadImageResponseDto {
 }
 
 export class ImageVersionDto {
-  @ApiProperty({ description: 'Relative file path' })
+  @ApiProperty({ description: 'API path to access the image' })
   path: string;
-
-  @ApiProperty({ description: 'Full URL to access the image' })
-  url: string;
 
   @ApiProperty({ description: 'File size in bytes' })
   size: number;
 
-  @ApiProperty({ description: 'Image width in pixels' })
-  width: number;
+  @ApiPropertyOptional({ description: 'Image width in pixels' })
+  width?: number;
 
-  @ApiProperty({ description: 'Image height in pixels' })
-  height: number;
+  @ApiPropertyOptional({ description: 'Image height in pixels' })
+  height?: number;
 }

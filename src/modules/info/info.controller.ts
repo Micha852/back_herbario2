@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { UserRole } from '../users/enums/user-role.enum';
 
 @ApiTags('System Information')
 @Controller('info')
@@ -65,7 +66,7 @@ export class InfoController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMINISTRADOR')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @Post()
   @ApiOperation({
@@ -81,7 +82,7 @@ export class InfoController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMINISTRADOR')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @Patch(':key')
   @ApiOperation({
@@ -101,7 +102,7 @@ export class InfoController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMINISTRADOR')
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @Delete(':key')
   @ApiOperation({

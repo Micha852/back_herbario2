@@ -2,11 +2,14 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Delete,
   Param,
   Query,
+  Body,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
   Res,
   HttpStatus,
   BadRequestException,
@@ -19,24 +22,33 @@ import {
   ApiConsumes,
   ApiQuery,
   ApiParam,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { Response } from 'express';
 import { ImagesService } from './images.service';
-import { UploadImageDto, UploadImageResponseDto } from './dto/upload-image.dto';
+import { UploadImageResponseDto } from './dto/upload-image.dto';
 import { TransformImageDto } from './dto/transform-image.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Public } from '../auth/decorators/public.decorator';
+import { UserEntity } from '../users/entities/user.entity';
 
 @ApiTags('Images')
 @Controller('images')
 export class ImagesController {
   constructor(private readonly imagesService: ImagesService) {}
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post('upload')
   @ApiOperation({
-    summary: 'Upload image with automatic multi-version generation',
+    summary: 'Upload image (Cloudinary-like service)',
     description:
-      'Uploads an image and automatically generates thumbnail, medium, and large versions (like Cloudinary)',
+      'Uploads an image and automatically generates thumbnail, medium, and large versions',
   })
   @ApiConsumes('multipart/form-data')
+  @ApiQuery({ name: 'specimenId', required: false, description: 'Associate with specimen' })
+  @ApiQuery({ name: 'imageType', required: false, description: 'Image type (habit, leaf, flower, etc.)' })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Image uploaded successfully',
@@ -50,7 +62,7 @@ export class ImagesController {
       fileFilter: (req, file, callback) => {
         if (!file.mimetype.match(/^image\/(jpeg|jpg|png|webp)$/)) {
           return callback(
-            new BadRequestException('Only image files are allowed'),
+            new BadRequestException('Only image files are allowed (jpeg, png, webp)'),
             false,
           );
         }
@@ -60,65 +72,42 @@ export class ImagesController {
   )
   async uploadImage(
     @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: UserEntity,
     @Query('specimenId') specimenId?: string,
+    @Query('imageType') imageType?: string,
   ): Promise<UploadImageResponseDto> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
 
-    // TODO: Get uploadedBy from JWT token (for now, use a placeholder)
-    const uploadedBy = 'system';
-
-    return this.imagesService.uploadImage(file, specimenId, uploadedBy);
+    return this.imagesService.uploadImage(
+      file,
+      specimenId,
+      user.id,
+      imageType || 'general',
+    );
   }
 
+  @Public()
   @Get(':id')
   @ApiOperation({
-    summary: 'Get image with optional transformations (like Cloudinary)',
+    summary: 'Get image with transformations (Cloudinary-like)',
     description:
-      'Retrieve an image with on-demand transformations (resize, format, quality)',
+      'Retrieve an image with on-demand transformations (resize, format, quality). URLs are public.',
   })
-  @ApiParam({ name: 'id', description: 'MongoDB image ID' })
+  @ApiParam({ name: 'id', description: 'Image UUID' })
   @ApiQuery({
     name: 'version',
     required: false,
     enum: ['original', 'thumbnail', 'medium', 'large'],
-    description: 'Image version to retrieve',
+    description: 'Pre-generated image version',
   })
-  @ApiQuery({
-    name: 'width',
-    required: false,
-    type: Number,
-    description: 'Resize width',
-  })
-  @ApiQuery({
-    name: 'height',
-    required: false,
-    type: Number,
-    description: 'Resize height',
-  })
-  @ApiQuery({
-    name: 'quality',
-    required: false,
-    type: Number,
-    description: 'Image quality (1-100)',
-  })
-  @ApiQuery({
-    name: 'format',
-    required: false,
-    enum: ['webp', 'jpeg', 'png'],
-    description: 'Output format',
-  })
-  @ApiQuery({
-    name: 'crop',
-    required: false,
-    enum: ['cover', 'contain', 'fill'],
-    description: 'Crop mode',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Image retrieved successfully',
-  })
+  @ApiQuery({ name: 'width', required: false, type: Number, description: 'Resize width (on-the-fly)' })
+  @ApiQuery({ name: 'height', required: false, type: Number, description: 'Resize height (on-the-fly)' })
+  @ApiQuery({ name: 'quality', required: false, type: Number, description: 'Quality 1-100 (on-the-fly)' })
+  @ApiQuery({ name: 'format', required: false, enum: ['webp', 'jpeg', 'png'], description: 'Output format' })
+  @ApiQuery({ name: 'crop', required: false, enum: ['cover', 'contain', 'fill'], description: 'Crop mode' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Image retrieved successfully' })
   async getImage(
     @Param('id') id: string,
     @Query('version') version: 'original' | 'thumbnail' | 'medium' | 'large' = 'original',
@@ -134,53 +123,104 @@ export class ImagesController {
     res.set({
       'Content-Type': mimeType,
       'Content-Length': buffer.length,
-      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Cache-Control': 'public, max-age=31536000, immutable', // Cache 1 year
+      'ETag': `"${id}-${version}"`,
     });
 
     res.send(buffer);
   }
 
+  @Public()
   @Get(':id/metadata')
   @ApiOperation({ summary: 'Get image metadata' })
-  @ApiParam({ name: 'id', description: 'MongoDB image ID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Image metadata retrieved successfully',
-  })
+  @ApiParam({ name: 'id', description: 'Image UUID' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Image metadata retrieved' })
   async getImageMetadata(@Param('id') id: string) {
-    return this.imagesService.getImage(id);
+    const image = await this.imagesService.getImage(id);
+    return {
+      id: image.id,
+      originalName: image.originalName,
+      mimeType: image.mimeType,
+      size: image.size,
+      width: image.width,
+      height: image.height,
+      imageType: image.imageType,
+      caption: image.caption,
+      isPrimary: image.isPrimary,
+      createdAt: image.createdAt,
+      urls: {
+        original: this.imagesService.getImageUrl(image.id),
+        thumbnail: this.imagesService.getImageUrl(image.id, { version: 'thumbnail' }),
+        medium: this.imagesService.getImageUrl(image.id, { version: 'medium' }),
+        large: this.imagesService.getImageUrl(image.id, { version: 'large' }),
+      },
+    };
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update image metadata' })
+  @ApiParam({ name: 'id', description: 'Image UUID' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Image updated' })
+  async updateImage(
+    @Param('id') id: string,
+    @Body() data: { caption?: string; imageType?: string; sortOrder?: number },
+  ) {
+    return this.imagesService.updateImage(id, data);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Patch(':id/primary')
+  @ApiOperation({ summary: 'Set as primary image for specimen' })
+  @ApiParam({ name: 'id', description: 'Image UUID' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Primary image set' })
+  async setPrimaryImage(
+    @Param('id') id: string,
+    @Body('specimenId') specimenId: string,
+  ) {
+    await this.imagesService.setPrimaryImage(id, specimenId);
+    return { message: 'Primary image set successfully' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Delete(':id')
-  @ApiOperation({
-    summary: 'Delete image and all its versions',
-  })
-  @ApiParam({ name: 'id', description: 'MongoDB image ID' })
-  @ApiResponse({
-    status: HttpStatus.NO_CONTENT,
-    description: 'Image deleted successfully',
-  })
+  @ApiOperation({ summary: 'Delete image (soft delete)' })
+  @ApiParam({ name: 'id', description: 'Image UUID' })
+  @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Image deleted' })
   async deleteImage(@Param('id') id: string): Promise<void> {
     await this.imagesService.deleteImage(id);
   }
 
+  @Public()
   @Get('specimen/:specimenId')
   @ApiOperation({ summary: 'Get all images for a specimen' })
   @ApiParam({ name: 'specimenId', description: 'Specimen UUID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Images retrieved successfully',
-  })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Images retrieved' })
   async getImagesBySpecimen(@Param('specimenId') specimenId: string) {
-    return this.imagesService.getImagesBySpecimen(specimenId);
+    const images = await this.imagesService.getImagesBySpecimen(specimenId);
+    return images.map((image) => ({
+      id: image.id,
+      originalName: image.originalName,
+      imageType: image.imageType,
+      caption: image.caption,
+      isPrimary: image.isPrimary,
+      sortOrder: image.sortOrder,
+      urls: {
+        original: this.imagesService.getImageUrl(image.id),
+        thumbnail: this.imagesService.getImageUrl(image.id, { version: 'thumbnail' }),
+        medium: this.imagesService.getImageUrl(image.id, { version: 'medium' }),
+      },
+    }));
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('stats/storage')
   @ApiOperation({ summary: 'Get storage statistics' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Storage statistics retrieved successfully',
-  })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Storage statistics' })
   async getStorageStats() {
     return this.imagesService.getStorageStats();
   }

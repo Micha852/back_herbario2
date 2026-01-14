@@ -5,10 +5,13 @@ import {
   IsUUID,
   IsDateString,
   IsInt,
+  IsNumber,
   MaxLength,
   Min,
+  Max,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export class CreateSpecimenDto {
   @ApiProperty({
@@ -39,26 +42,46 @@ export class CreateSpecimenDto {
   collectionDate?: string;
 
   @ApiPropertyOptional({
-    description: 'GPS coordinates',
-    example: '1.6144° N, 75.6062° W',
-    maxLength: 100,
+    description: 'Latitude coordinate',
+    example: 1.6144,
+    minimum: -90,
+    maximum: 90,
   })
   @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  coordinates?: string;
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  @Type(() => Number)
+  latitude?: number;
 
   @ApiPropertyOptional({
-    description: 'Altitude',
-    example: '280 msnm',
-    maxLength: 50,
+    description: 'Longitude coordinate',
+    example: -75.6062,
+    minimum: -180,
+    maximum: 180,
   })
   @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  altitude?: string;
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  @Type(() => Number)
+  longitude?: number;
+
+  @ApiPropertyOptional({
+    description: 'Altitude in meters',
+    example: 280,
+  })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  altitude?: number;
 
   // Taxonomic classification
+  @ApiPropertyOptional({ description: 'Division ID' })
+  @IsOptional()
+  @IsUUID()
+  divisionId?: string;
+
   @ApiPropertyOptional({ description: 'Class ID' })
   @IsOptional()
   @IsUUID()
@@ -83,11 +106,6 @@ export class CreateSpecimenDto {
   @IsOptional()
   @IsUUID()
   speciesId?: string;
-
-  @ApiPropertyOptional({ description: 'Division ID' })
-  @IsOptional()
-  @IsUUID()
-  divisionId?: string;
 
   // Location
   @ApiPropertyOptional({ description: 'Location ID' })
@@ -128,12 +146,14 @@ export class CreateSpecimenDto {
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Type(() => Number)
   adultsCount?: number;
 
   @ApiPropertyOptional({ description: 'Number of juveniles', minimum: 0 })
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Type(() => Number)
   juvenilesCount?: number;
 
   @ApiPropertyOptional({ description: 'Condition ID' })
@@ -147,24 +167,22 @@ export class CreateSpecimenDto {
   originTypeId?: string;
 
   @ApiPropertyOptional({
-    description: 'Minimum elevation',
-    example: '200',
-    maxLength: 50,
+    description: 'Minimum elevation in meters',
+    example: 200,
   })
   @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  minElevation?: string;
+  @IsInt()
+  @Type(() => Number)
+  minElevation?: number;
 
   @ApiPropertyOptional({
-    description: 'Maximum elevation',
-    example: '500',
-    maxLength: 50,
+    description: 'Maximum elevation in meters',
+    example: 500,
   })
   @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  maxElevation?: string;
+  @IsInt()
+  @Type(() => Number)
+  maxElevation?: number;
 
   @ApiPropertyOptional({ description: 'Habitat ID' })
   @IsOptional()
@@ -180,7 +198,7 @@ export class CreateSpecimenDto {
   localObservation?: string;
 
   @ApiPropertyOptional({
-    description: 'Catalog number',
+    description: 'Catalog number (auto-generated if not provided)',
     example: 'HUAZ-001234',
     maxLength: 50,
   })

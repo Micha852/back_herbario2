@@ -24,7 +24,7 @@ export class ProjectsService {
         name: dto.name,
         startDate: dto.startDate ? new Date(dto.startDate) : null,
         endDate: dto.endDate ? new Date(dto.endDate) : null,
-        effortDays: dto.effortDays,
+        effortDays: dto.effortDays ? parseInt(dto.effortDays as any, 10) : null,
         observation: dto.observation,
         protocolId: dto.protocolId,
         startTime: dto.startTime,
@@ -79,12 +79,15 @@ export class ProjectsService {
       }
     }
 
+    const { startDate, endDate, effortDays, ...rest } = dto;
+
     return this.prisma.project.update({
       where: { id },
       data: {
-        ...dto,
-        startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-        endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+        ...rest,
+        startDate: startDate ? new Date(startDate) : undefined,
+        endDate: endDate ? new Date(endDate) : undefined,
+        effortDays: effortDays ? parseInt(effortDays as any, 10) : undefined,
       },
       include: { protocol: true },
     });

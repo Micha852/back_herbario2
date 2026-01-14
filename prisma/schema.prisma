@@ -1,6 +1,7 @@
 // Prisma Schema for HDUA - Herbario Digital Universidad Amazonia
 // Database: PostgreSQL
 // ORM: Prisma 5+
+// Version: 2.0 - Professional Herbarium Schema
 
 generator client {
   provider = "prisma-client-js"
@@ -19,7 +20,7 @@ model User {
   id            String   @id @default(uuid())
   name          String   @db.VarChar(100)
   email         String   @unique @db.VarChar(100)
-  password      String?  @db.VarChar(255) // Nullable for OAuth users
+  password      String?  @db.VarChar(255)
   isCollector   Boolean  @default(false)
   isActive      Boolean  @default(true)
   roleId        String
@@ -30,15 +31,20 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // Relations
-  role         Role          @relation(fields: [roleId], references: [id])
-  gender       Gender?       @relation(fields: [genderId], references: [id])
-  type         UserType?     @relation(fields: [typeId], references: [id])
-  institution  Institution?  @relation(fields: [institutionId], references: [id])
-  comments     Comment[]
-  specimens    SpecimenCollector[]
+  role        Role         @relation(fields: [roleId], references: [id])
+  gender      Gender?      @relation(fields: [genderId], references: [id])
+  type        UserType?    @relation(fields: [typeId], references: [id])
+  institution Institution? @relation(fields: [institutionId], references: [id])
+
+  // Reverse relations
+  comments           Comment[]
+  collectedSpecimens SpecimenCollector[]
+  createdSpecimens   Specimen[]          @relation("SpecimenCreatedBy")
+  updatedSpecimens   Specimen[]          @relation("SpecimenUpdatedBy")
 
   @@index([email])
   @@index([roleId])
+  @@index([isCollector])
   @@map("users")
 }
 
@@ -46,7 +52,7 @@ model Role {
   id          String   @id @default(uuid())
   name        String   @unique @db.VarChar(50)
   description String?  @db.Text
-  permissions String[] // Array of permission strings
+  permissions String[]
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -83,6 +89,7 @@ model UserType {
 model Institution {
   id        String   @id @default(uuid())
   name      String   @unique @db.VarChar(200)
+  acronym   String?  @db.VarChar(20)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -97,83 +104,118 @@ model Institution {
 // ============================================
 
 model Specimen {
-  id               String    @id @default(uuid())
-  scientificName   String    @db.VarChar(200)
-  commonName       String?   @db.VarChar(200)
-  imageId          String?   @db.VarChar(24) // MongoDB ObjectId reference
-  collectionDate   DateTime?
-  coordinates      String?   @db.VarChar(100)
-  altitude         String?   @db.VarChar(50)
-  isActive         Boolean   @default(true)
+  id             String  @id @default(uuid())
+  catalogNumber  String  @unique @db.VarChar(50) // e.g., HUAZ-001234
+  registryNumber String? @db.VarChar(50)
 
-  // Taxonomic classification
-  classId      String?
-  orderId      String?
-  familyId     String?
-  genusId      String?
-  speciesId    String?
-  divisionId   String?
+  // Scientific identification
+  scientificName String  @db.VarChar(200)
+  commonName     String? @db.VarChar(200)
+  author         String? @db.VarChar(200) // Taxonomic author
 
-  // Location
+  // Taxonomic classification (hierarchical)
+  divisionId String?
+  classId    String?
+  orderId    String?
+  familyId   String?
+  genusId    String?
+  speciesId  String?
+
+  // Collection data
+  collectionDate DateTime?
+  collectionYear Int?
+
+  // Geographic coordinates (professional format)
+  latitude  Decimal? @db.Decimal(10, 8) // -90 to 90
+  longitude Decimal? @db.Decimal(11, 8) // -180 to 180
+  altitude  Int? // meters above sea level
+
+  // Elevation range
+  minElevation Int?
+  maxElevation Int?
+
+  // Location reference
   locationId String?
 
-  // Leaf characteristics
+  // Leaf morphology
   venationTypeId String?
   formTypeId     String?
   marginTypeId   String?
 
-  // Origin
-  originId String?
+  // Specimen characteristics
+  originId     String?
+  originTypeId String?
+  conditionId  String?
+  habitatId    String?
 
-  // Project
+  // Population data
+  adultsCount    Int?
+  juvenilesCount Int?
+
+  // Project association
   projectId String?
 
-  // Additional fields
-  adultsCount      Int?
-  juvenilesCount   Int?
-  conditionId      String?
-  originTypeId     String?
-  minElevation     String? @db.VarChar(50)
-  maxElevation     String? @db.VarChar(50)
-  habitatId        String?
-  localObservation String? @db.Text
-  catalogNumber    String? @db.VarChar(50)
-  registryNumber   String? @db.VarChar(50)
-  author           String? @db.VarChar(200)
+  // Observations
+  localObservation   String? @db.Text
+  fieldNotes         String? @db.Text
+  identificationNotes String? @db.Text
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // Image reference (MongoDB ObjectId)
+  imageId String? @db.VarChar(24)
+
+  // Status
+  isActive  Boolean @default(true)
+  isVerified Boolean @default(false)
+
+  // Audit fields
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
-  class        Class?         @relation(fields: [classId], references: [id])
-  order        Order?         @relation(fields: [orderId], references: [id])
-  family       Family?        @relation(fields: [familyId], references: [id])
-  genus        Genus?         @relation(fields: [genusId], references: [id])
-  species      Species?       @relation(fields: [speciesId], references: [id])
-  division     Division?      @relation(fields: [divisionId], references: [id])
-  location     Location?      @relation(fields: [locationId], references: [id])
-  venationType VenationType?  @relation(fields: [venationTypeId], references: [id])
-  formType     FormType?      @relation(fields: [formTypeId], references: [id])
-  marginType   MarginType?    @relation(fields: [marginTypeId], references: [id])
-  origin       Origin?        @relation(fields: [originId], references: [id])
-  project      Project?       @relation(fields: [projectId], references: [id])
-  condition    Condition?     @relation(fields: [conditionId], references: [id])
-  originType   OriginType?    @relation(fields: [originTypeId], references: [id])
-  habitat      Habitat?       @relation(fields: [habitatId], references: [id])
-  collectors   SpecimenCollector[]
-  comments     Comment[]
+  division     Division?     @relation(fields: [divisionId], references: [id])
+  class        Class?        @relation(fields: [classId], references: [id])
+  order        Order?        @relation(fields: [orderId], references: [id])
+  family       Family?       @relation(fields: [familyId], references: [id])
+  genus        Genus?        @relation(fields: [genusId], references: [id])
+  species      Species?      @relation(fields: [speciesId], references: [id])
+  location     Location?     @relation(fields: [locationId], references: [id])
+  venationType VenationType? @relation(fields: [venationTypeId], references: [id])
+  formType     FormType?     @relation(fields: [formTypeId], references: [id])
+  marginType   MarginType?   @relation(fields: [marginTypeId], references: [id])
+  origin       Origin?       @relation(fields: [originId], references: [id])
+  originType   OriginType?   @relation(fields: [originTypeId], references: [id])
+  condition    Condition?    @relation(fields: [conditionId], references: [id])
+  habitat      Habitat?      @relation(fields: [habitatId], references: [id])
+  project      Project?      @relation(fields: [projectId], references: [id])
+  createdBy    User?         @relation("SpecimenCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User?         @relation("SpecimenUpdatedBy", fields: [updatedById], references: [id])
 
+  // Many-to-many
+  collectors SpecimenCollector[]
+  comments   Comment[]
+  images     SpecimenImage[]
+
+  @@index([catalogNumber])
   @@index([scientificName])
   @@index([commonName])
-  @@index([classId, orderId, familyId, genusId, speciesId])
+  @@index([collectionYear])
+  @@index([familyId])
+  @@index([genusId])
+  @@index([speciesId])
   @@index([projectId])
+  @@index([locationId])
+  @@index([isVerified])
   @@map("specimens")
 }
 
 model SpecimenCollector {
-  specimenId String   @map("specimen_id")
-  userId     String   @map("user_id")
-  assignedAt DateTime @default(now())
+  specimenId   String
+  userId       String
+  isPrincipal  Boolean  @default(false) // Principal collector
+  collectorNumber String? @db.VarChar(50) // Collector's field number
+  assignedAt   DateTime @default(now())
 
   specimen Specimen @relation(fields: [specimenId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -182,104 +224,188 @@ model SpecimenCollector {
   @@map("specimen_collectors")
 }
 
+model SpecimenImage {
+  id         String   @id @default(uuid())
+  specimenId String?  // Optional: can be null for general system images
+
+  // Image file information (local storage)
+  fileName     String   @db.VarChar(255) // Stored filename
+  originalName String   @db.VarChar(255)
+  filePath     String   @db.VarChar(500) // Relative path: /uploads/2024/01/abc123.webp
+  mimeType     String   @db.VarChar(50)
+  size         Int      // Size in bytes
+  width        Int?
+  height       Int?
+
+  // Variants paths (generated by Sharp)
+  thumbnailPath String?  @db.VarChar(500)
+  mediumPath    String?  @db.VarChar(500)
+  largePath     String?  @db.VarChar(500)
+
+  // Image metadata
+  imageType  String   @db.VarChar(50) // habit, leaf, flower, fruit, bark, detail, general
+  caption    String?  @db.VarChar(255)
+  sortOrder  Int      @default(0)
+  isPrimary  Boolean  @default(false)
+
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  specimen Specimen? @relation(fields: [specimenId], references: [id], onDelete: Cascade)
+
+  @@index([specimenId])
+  @@index([isPrimary])
+  @@map("specimen_images")
+}
+
 // ============================================
-// TAXONOMY (Botanical Classification)
+// TAXONOMY (Botanical Classification - Hierarchical)
 // ============================================
-
-model Class {
-  id        String     @id @default(uuid())
-  name      String     @unique @db.VarChar(100)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  specimens Specimen[]
-
-  @@map("classes")
-}
-
-model Order {
-  id        String     @id @default(uuid())
-  name      String     @unique @db.VarChar(100)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  specimens Specimen[]
-
-  @@map("orders")
-}
-
-model Family {
-  id        String     @id @default(uuid())
-  name      String     @unique @db.VarChar(100)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  specimens Specimen[]
-
-  @@map("families")
-}
-
-model Genus {
-  id        String     @id @default(uuid())
-  name      String     @unique @db.VarChar(100)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  specimens Specimen[]
-
-  @@map("genera")
-}
-
-model Species {
-  id        String     @id @default(uuid())
-  name      String     @unique @db.VarChar(100)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  specimens Specimen[]
-
-  @@map("species")
-}
 
 model Division {
-  id        String     @id @default(uuid())
-  name      String     @unique @db.VarChar(100)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  classes   Class[]
   specimens Specimen[]
 
   @@map("divisions")
 }
 
+model Class {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  divisionId  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  division  Division? @relation(fields: [divisionId], references: [id])
+  orders    Order[]
+  specimens Specimen[]
+
+  @@index([divisionId])
+  @@map("classes")
+}
+
+model Order {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  classId     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  class     Class?   @relation(fields: [classId], references: [id])
+  families  Family[]
+  specimens Specimen[]
+
+  @@index([classId])
+  @@map("orders")
+}
+
+model Family {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  orderId     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  order     Order?   @relation(fields: [orderId], references: [id])
+  genera    Genus[]
+  specimens Specimen[]
+
+  @@index([orderId])
+  @@map("families")
+}
+
+model Genus {
+  id          String   @id @default(uuid())
+  name        String   @db.VarChar(100)
+  author      String?  @db.VarChar(100) // e.g., "L.", "Mill."
+  description String?  @db.Text
+  familyId    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  family    Family?   @relation(fields: [familyId], references: [id])
+  species   Species[]
+  specimens Specimen[]
+
+  @@unique([name, familyId])
+  @@index([familyId])
+  @@map("genera")
+}
+
+model Species {
+  id             String   @id @default(uuid())
+  epithet        String   @db.VarChar(100) // Species epithet only
+  author         String?  @db.VarChar(150) // e.g., "(L.) Mart."
+  fullName       String?  @db.VarChar(250) // Computed: Genus + epithet + author
+  description    String?  @db.Text
+  commonNames    String[] // Array of common names
+  genusId        String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  genus     Genus?     @relation(fields: [genusId], references: [id])
+  specimens Specimen[]
+
+  @@unique([epithet, genusId])
+  @@index([genusId])
+  @@index([epithet])
+  @@map("species")
+}
+
+// ============================================
+// LEAF MORPHOLOGY
+// ============================================
+
 model VenationType {
-  id        String     @id @default(uuid())
-  name      String     @unique @db.VarChar(100)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   specimens Specimen[]
 
   @@map("venation_types")
 }
 
 model FormType {
-  id        String     @id @default(uuid())
-  name      String     @unique @db.VarChar(100)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   specimens Specimen[]
 
   @@map("form_types")
 }
 
 model MarginType {
-  id        String     @id @default(uuid())
-  name      String     @unique @db.VarChar(100)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   specimens Specimen[]
 
   @@map("margin_types")
@@ -292,23 +418,27 @@ model MarginType {
 model Department {
   id             String         @id @default(uuid())
   name           String         @unique @db.VarChar(100)
+  code           String?        @unique @db.VarChar(10) // ISO code
   isActive       Boolean        @default(true)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+
   municipalities Municipality[]
 
   @@map("departments")
 }
 
 model Municipality {
-  id           String     @id @default(uuid())
-  name         String     @db.VarChar(100)
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(100)
+  code         String?  @db.VarChar(10)
   departmentId String
-  isActive     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  department   Department @relation(fields: [departmentId], references: [id])
-  locations    Location[]
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  department Department @relation(fields: [departmentId], references: [id])
+  locations  Location[]
 
   @@unique([name, departmentId])
   @@index([departmentId])
@@ -316,30 +446,41 @@ model Municipality {
 }
 
 model LocationType {
-  id        String     @id @default(uuid())
-  name      String     @unique @db.VarChar(100)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   locations Location[]
 
   @@map("location_types")
 }
 
 model Location {
-  id             String       @id @default(uuid())
-  name           String       @db.VarChar(200)
+  id             String   @id @default(uuid())
+  name           String   @db.VarChar(200)
+  description    String?  @db.Text
   locationTypeId String
   municipalityId String
-  waterBody      String?      @db.VarChar(200)
-  isActive       Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  locationType   LocationType @relation(fields: [locationTypeId], references: [id])
-  municipality   Municipality @relation(fields: [municipalityId], references: [id])
-  specimens      Specimen[]
+  waterBody      String?  @db.VarChar(200)
+
+  // Default coordinates for this location
+  latitude       Decimal? @db.Decimal(10, 8)
+  longitude      Decimal? @db.Decimal(11, 8)
+  altitude       Int?
+
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  locationType LocationType @relation(fields: [locationTypeId], references: [id])
+  municipality Municipality @relation(fields: [municipalityId], references: [id])
+  specimens    Specimen[]
 
   @@index([municipalityId])
+  @@index([locationTypeId])
   @@map("locations")
 }
 
@@ -350,9 +491,11 @@ model Location {
 model Project {
   id          String    @id @default(uuid())
   name        String    @unique @db.VarChar(200)
+  code        String?   @unique @db.VarChar(50)
+  description String?   @db.Text
   startDate   DateTime?
   endDate     DateTime?
-  effortDays  String?   @db.VarChar(50)
+  effortDays  Int?
   observation String?   @db.Text
   protocolId  String?
   startTime   String?   @db.VarChar(10)
@@ -360,19 +503,23 @@ model Project {
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  protocol    Protocol? @relation(fields: [protocolId], references: [id])
-  specimens   Specimen[]
+
+  protocol  Protocol?  @relation(fields: [protocolId], references: [id])
+  specimens Specimen[]
 
   @@map("projects")
 }
 
 model Protocol {
-  id        String    @id @default(uuid())
-  name      String    @unique @db.VarChar(200)
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  projects  Project[]
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(200)
+  description String?  @db.Text
+  steps       String[] // Array of steps
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  projects Project[]
 
   @@map("protocols")
 }
@@ -388,8 +535,9 @@ model Comment {
   userId     String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  specimen   Specimen @relation(fields: [specimenId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  specimen Specimen @relation(fields: [specimenId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([specimenId])
   @@index([userId])
@@ -401,44 +549,52 @@ model Comment {
 // ============================================
 
 model Origin {
-  id        String     @id @default(uuid())
-  name      String     @unique @db.VarChar(100)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   specimens Specimen[]
 
   @@map("origins")
 }
 
-model Condition {
-  id        String     @id @default(uuid())
-  name      String     @unique @db.VarChar(100)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  specimens Specimen[]
-
-  @@map("conditions")
-}
-
 model OriginType {
-  id        String     @id @default(uuid())
-  name      String     @unique @db.VarChar(100)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   specimens Specimen[]
 
   @@map("origin_types")
 }
 
+model Condition {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  specimens Specimen[]
+
+  @@map("conditions")
+}
+
 model Habitat {
-  id        String     @id @default(uuid())
-  name      String     @unique @db.VarChar(100)
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   specimens Specimen[]
 
   @@map("habitats")
@@ -449,37 +605,27 @@ model Habitat {
 // ============================================
 
 model SystemInfo {
-  id          String   @id @default(uuid())
-  key         String   @unique @db.VarChar(50) // history, data, contacts, terms
-  title       String   @db.VarChar(200)
-  content     String   @db.Text
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  key       String   @unique @db.VarChar(50)
+  title     String   @db.VarChar(200)
+  content   String   @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("system_info")
 }
 
 // ============================================
-// IMAGE METADATA (MongoDB reference)
+// CATALOG COUNTER (For auto-numbering)
 // ============================================
 
-model ImageMetadata {
-  id            String   @id @default(uuid())
-  mongoId       String   @unique @db.VarChar(24) // MongoDB ObjectId
-  originalName  String   @db.VarChar(255)
-  mimeType      String   @db.VarChar(50)
-  size          Int // Size in bytes
-  width         Int
-  height        Int
-  format        String   @db.VarChar(10) // webp, jpg, png
-  specimenId    String?
-  uploadedBy    String
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+model CatalogCounter {
+  id        String   @id @default(uuid())
+  prefix    String   @unique @db.VarChar(20) // e.g., "HUAZ"
+  lastNumber Int     @default(0)
+  updatedAt DateTime @updatedAt
 
-  @@index([mongoId])
-  @@index([specimenId])
-  @@map("image_metadata")
+  @@map("catalog_counters")
 }
+
