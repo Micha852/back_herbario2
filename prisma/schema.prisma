@@ -113,13 +113,8 @@ model Specimen {
   commonName     String? @db.VarChar(200)
   author         String? @db.VarChar(200) // Taxonomic author
 
-  // Taxonomic classification (hierarchical)
-  divisionId String?
-  classId    String?
-  orderId    String?
-  familyId   String?
-  genusId    String?
-  speciesId  String?
+  // Taxonomic classification (only reference to species - hierarchy is resolved via relations)
+  speciesId  String? // All taxonomy is obtained through: Species → Genus → Family → Order → Class → Division
 
   // Collection data
   collectionDate DateTime?
@@ -174,11 +169,6 @@ model Specimen {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  division     Division?     @relation(fields: [divisionId], references: [id])
-  class        Class?        @relation(fields: [classId], references: [id])
-  order        Order?        @relation(fields: [orderId], references: [id])
-  family       Family?       @relation(fields: [familyId], references: [id])
-  genus        Genus?        @relation(fields: [genusId], references: [id])
   species      Species?      @relation(fields: [speciesId], references: [id])
   location     Location?     @relation(fields: [locationId], references: [id])
   venationType VenationType? @relation(fields: [venationTypeId], references: [id])
@@ -201,8 +191,6 @@ model Specimen {
   @@index([scientificName])
   @@index([commonName])
   @@index([collectionYear])
-  @@index([familyId])
-  @@index([genusId])
   @@index([speciesId])
   @@index([projectId])
   @@index([locationId])
@@ -271,8 +259,7 @@ model Division {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  classes   Class[]
-  specimens Specimen[]
+  classes Class[]
 
   @@map("divisions")
 }
@@ -286,9 +273,8 @@ model Class {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  division  Division? @relation(fields: [divisionId], references: [id])
-  orders    Order[]
-  specimens Specimen[]
+  division Division? @relation(fields: [divisionId], references: [id])
+  orders   Order[]
 
   @@index([divisionId])
   @@map("classes")
@@ -303,9 +289,8 @@ model Order {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  class     Class?   @relation(fields: [classId], references: [id])
-  families  Family[]
-  specimens Specimen[]
+  class    Class?   @relation(fields: [classId], references: [id])
+  families Family[]
 
   @@index([classId])
   @@map("orders")
@@ -320,9 +305,8 @@ model Family {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  order     Order?   @relation(fields: [orderId], references: [id])
-  genera    Genus[]
-  specimens Specimen[]
+  order  Order?  @relation(fields: [orderId], references: [id])
+  genera Genus[]
 
   @@index([orderId])
   @@map("families")
@@ -338,9 +322,8 @@ model Genus {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  family    Family?   @relation(fields: [familyId], references: [id])
-  species   Species[]
-  specimens Specimen[]
+  family  Family?   @relation(fields: [familyId], references: [id])
+  species Species[]
 
   @@unique([name, familyId])
   @@index([familyId])
