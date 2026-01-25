@@ -22,6 +22,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { MailModule } from './modules/mail/mail.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { InfoModule } from './modules/info/info.module';
+import { SystemInfoModule } from './modules/system-info/system-info.module';
 
 @Module({
   imports: [
@@ -61,8 +62,9 @@ import { InfoModule } from './modules/info/info.module';
     ReportsModule,
     FeedbackModule,
     InfoModule,
+    SystemInfoModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
