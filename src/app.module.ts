@@ -23,6 +23,8 @@ import { MailModule } from './modules/mail/mail.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { InfoModule } from './modules/info/info.module';
 import { SystemInfoModule } from './modules/system-info/system-info.module';
+import { GendersModule } from './modules/genders/genders.module';
+import { InstitutionsModule } from './modules/institutions/institutions.module';
 
 @Module({
   imports: [
@@ -63,6 +65,8 @@ import { SystemInfoModule } from './modules/system-info/system-info.module';
     FeedbackModule,
     InfoModule,
     SystemInfoModule,
+    GendersModule,
+    InstitutionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
