@@ -9,15 +9,30 @@ import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class SpecimensService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   private readonly includeRelations = {
-    class: true,
-    order: true,
-    family: true,
-    genus: true,
-    species: true,
-    division: true,
+    species: {
+      include: {
+        genus: {
+          include: {
+            family: {
+              include: {
+                order: {
+                  include: {
+                    class: {
+                      include: {
+                        division: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     location: {
       include: {
         municipality: {
@@ -45,6 +60,8 @@ export class SpecimensService {
       where: { isActive: true },
       orderBy: [{ isPrimary: 'desc' as const }, { sortOrder: 'asc' as const }],
     },
+    createdBy: true,
+    updatedBy: true,
   };
 
   /**
