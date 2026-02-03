@@ -11,7 +11,7 @@ import { TaxonomyType } from './enums/taxonomy-type.enum';
 
 @Injectable()
 export class TaxonomyService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   private getModel(type: TaxonomyType) {
     const models = {
@@ -56,9 +56,12 @@ export class TaxonomyService {
   async findAll(type: TaxonomyType, includeInactive = false) {
     const model = this.getModel(type) as any;
 
+    // Species model uses 'epithet' instead of 'name'
+    const orderByField = type === TaxonomyType.SPECIES ? 'epithet' : 'name';
+
     return model.findMany({
       where: includeInactive ? {} : { isActive: true },
-      orderBy: { name: 'asc' },
+      orderBy: { [orderByField]: 'asc' },
     });
   }
 
