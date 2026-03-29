@@ -155,8 +155,8 @@ model Specimen {
   fieldNotes         String? @db.Text
   identificationNotes String? @db.Text
 
-  // Image reference (MongoDB ObjectId)
-  imageId String? @db.VarChar(24)
+  // Image reference (MongoDB ObjectId legacy, now uses UUID)
+  imageId String? @db.VarChar(50)
 
   // Status
   isActive  Boolean @default(true)
