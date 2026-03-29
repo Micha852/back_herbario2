@@ -1,6 +1,7 @@
 import {
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateSpecimenDto } from './dto/create-specimen.dto';
@@ -95,17 +96,25 @@ export class SpecimensService {
     // Generate catalog number if not provided
     const catalogNumber = dto.catalogNumber || await this.generateCatalogNumber();
 
-    const specimen = await this.prisma.specimen.create({
-      data: {
-        ...data,
-        catalogNumber,
-        collectionDate: collectionDate ? new Date(collectionDate) : null,
-        latitude: latitude !== undefined ? new Decimal(latitude) : null,
-        longitude: longitude !== undefined ? new Decimal(longitude) : null,
-        isActive: dto.isActive ?? true,
-      },
-      include: this.includeRelations,
-    });
+    let specimen;
+    try {
+      specimen = await this.prisma.specimen.create({
+        data: {
+          ...data,
+          catalogNumber,
+          collectionDate: collectionDate ? new Date(collectionDate) : null,
+          latitude: latitude !== undefined ? new Decimal(latitude) : null,
+          longitude: longitude !== undefined ? new Decimal(longitude) : null,
+          isActive: dto.isActive ?? true,
+        },
+        include: this.includeRelations,
+      });
+    } catch (error: any) {
+      if (error.code === 'P2002' && error.meta?.target?.includes('catalogNumber')) {
+        throw new BadRequestException(`El número de catálogo '${catalogNumber}' ya existe. Por favor usa uno diferente.`);
+      }
+      throw error;
+    }
 
     // Assign collectors if provided
     if (collectorIds && collectorIds.length > 0) {
@@ -128,6 +137,7 @@ export class SpecimensService {
       limit = 20,
       scientificName,
       commonName,
+      catalogNumber,
       classId,
       orderId,
       familyId,
@@ -153,6 +163,13 @@ export class SpecimensService {
     if (commonName) {
       where.commonName = {
         contains: commonName,
+        mode: 'insensitive',
+      };
+    }
+
+    if (catalogNumber) {
+      where.catalogNumber = {
+        contains: catalogNumber,
         mode: 'insensitive',
       };
     }
@@ -358,5 +375,35 @@ export class SpecimensService {
 
   async createHabitat(name: string) {
     return this.prisma.habitat.create({ data: { name } });
+  }
+
+  /**
+   * Associate an image with a specimen as primary image
+   */
+  async updateSpecimenImage(specimenId: string, imageId: string) {
+    // Verify specimen exists
+    const specimen = await this.prisma.specimen.findUnique({
+      where: { id: specimenId },
+    });
+
+    if (!specimen) {
+      throw new NotFoundException(`Specimen with ID ${specimenId} not found`);
+    }
+
+    // Verify image exists
+    const image = await this.prisma.specimenImage.findUnique({
+      where: { id: imageId },
+    });
+
+    if (!image) {
+      throw new NotFoundException(`Image with ID ${imageId} not found`);
+    }
+
+    // Update specimen with the image
+    return this.prisma.specimen.update({
+      where: { id: specimenId },
+      data: { imageId },
+      include: this.includeRelations,
+    });
   }
 }

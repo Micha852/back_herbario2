@@ -13,6 +13,11 @@ export class SearchSpecimenDto {
   @IsString()
   commonName?: string;
 
+  @ApiPropertyOptional({ description: 'Search by catalog number' })
+  @IsOptional()
+  @IsString()
+  catalogNumber?: string;
+
   @ApiPropertyOptional({ description: 'Filter by class ID' })
   @IsOptional()
   @IsUUID()

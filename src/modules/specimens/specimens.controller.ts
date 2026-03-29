@@ -29,7 +29,7 @@ import { UserRole } from '../users/enums/user-role.enum';
 @ApiTags('Specimens')
 @Controller('specimens')
 export class SpecimensController {
-  constructor(private readonly specimensService: SpecimensService) {}
+  constructor(private readonly specimensService: SpecimensService) { }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
@@ -324,5 +324,29 @@ export class SpecimensController {
   })
   removeCollector(@Param('id') id: string, @Param('userId') userId: string) {
     return this.specimensService.removeCollector(id, userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
+  @ApiBearerAuth()
+  @Patch(':id/image')
+  @ApiOperation({
+    summary: 'Set primary image for specimen',
+    description: 'Associates an image as the primary image for the specimen. Requires ADMIN or COLLABORATOR role.',
+  })
+  @ApiParam({ name: 'id', description: 'Specimen UUID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Image associated successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Specimen or image not found',
+  })
+  updateSpecimenImage(
+    @Param('id') id: string,
+    @Body('imageId') imageId: string,
+  ) {
+    return this.specimensService.updateSpecimenImage(id, imageId);
   }
 }
