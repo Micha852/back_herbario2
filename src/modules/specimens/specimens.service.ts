@@ -4,13 +4,17 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { ImagesService } from '../images/images.service';
 import { CreateSpecimenDto } from './dto/create-specimen.dto';
 import { SearchSpecimenDto } from './dto/search-specimen.dto';
 import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class SpecimensService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private imagesService: ImagesService,
+  ) { }
 
   private readonly includeRelations = {
     species: {
@@ -147,11 +151,14 @@ export class SpecimensService {
       projectId,
       locationId,
       collectorId,
+      isActive,
     } = searchDto;
 
-    const where: any = {
-      isActive: true,
-    };
+    const where: any = {};
+
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    }
 
     if (scientificName) {
       where.scientificName = {
@@ -264,11 +271,32 @@ export class SpecimensService {
   }
 
   async remove(id: string) {
-    await this.findOne(id);
-
-    return this.prisma.specimen.update({
+    const specimen = await this.prisma.specimen.findUnique({
       where: { id },
-      data: { isActive: false },
+    });
+
+    if (!specimen) {
+      throw new NotFoundException(`Specimen with ID ${id} not found`);
+    }
+
+    // Hard delete all associated images physically from disk
+    const images = await this.prisma.specimenImage.findMany({
+      where: { specimenId: id },
+    });
+
+    for (const img of images) {
+      try {
+        await this.imagesService.hardDeleteImage(img.id);
+      } catch (error: any) {
+        // Log explicitly because we don't want a single missing image file to stop the DB deletion
+        console.error(`Error deleting image files for ${img.id}:`, error.message);
+      }
+    }
+
+    // Delete the specimen record completely. 
+    // Prisma's onDelete: Cascade will handle specimen_collectors, comments, etc!
+    return this.prisma.specimen.delete({
+      where: { id },
     });
   }
 

@@ -1,5 +1,5 @@
-import { IsOptional, IsString, IsUUID, IsInt, Min, Max } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsOptional, IsString, IsUUID, IsInt, Min, Max, IsBoolean } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SearchSpecimenDto {
@@ -62,6 +62,12 @@ export class SearchSpecimenDto {
   @IsOptional()
   @IsUUID()
   collectorId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by active status' })
+  @IsOptional()
+  @Transform(({ value }) => value === undefined ? undefined : value === 'true')
+  @IsBoolean()
+  isActive?: boolean;
 
   @ApiPropertyOptional({ description: 'Page number', default: 1 })
   @IsOptional()
