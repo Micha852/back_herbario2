@@ -24,7 +24,7 @@ export class UsersService {
     });
 
     if (existingUser) {
-      throw new ConflictException('Email already exists');
+      throw new ConflictException('El correo ya está registrado');
     }
 
     // Validate password strength
@@ -117,7 +117,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
     }
 
     return new UserEntity(user);
@@ -195,7 +195,7 @@ export class UsersService {
         where: { email: data.email },
       });
       if (existing && existing.id !== id) {
-        throw new ConflictException('Email already exists');
+        throw new ConflictException('El correo ya está registrado');
       }
     }
 
@@ -244,7 +244,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
     }
 
     // Verify old password
@@ -253,7 +253,7 @@ export class UsersService {
       user.password!,
     );
     if (!isPasswordValid) {
-      throw new BadRequestException('Invalid old password');
+      throw new BadRequestException('Contraseña actual incorrecta');
     }
 
     // Validate new password strength

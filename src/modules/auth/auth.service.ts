@@ -90,7 +90,7 @@ export class AuthService {
         accessToken: this.jwtService.sign(newPayload),
       };
     } catch (error) {
-      throw new BadRequestException('Invalid refresh token');
+      throw new BadRequestException('Sesión inválida o expirada');
     }
   }
 

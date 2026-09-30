@@ -18,15 +18,15 @@ export class CreateUserDto {
     maxLength: 100,
   })
   @IsString()
-  @MinLength(3)
-  @MaxLength(100)
+  @MinLength(3, { message: 'El nombre debe tener al menos 3 caracteres' })
+  @MaxLength(100, { message: 'El nombre no puede superar 100 caracteres' })
   name: string;
 
   @ApiProperty({
     description: 'User email address',
     example: 'juan.perez@uniamazonia.edu.co',
   })
-  @IsEmail()
+  @IsEmail({}, { message: 'El correo electrónico no es válido' })
   email: string;
 
   @ApiProperty({
@@ -35,10 +35,10 @@ export class CreateUserDto {
     minLength: 8,
   })
   @IsString()
-  @MinLength(8)
+  @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/, {
     message:
-      'Password must contain at least one uppercase letter, one lowercase letter, and one number',
+      'La contraseña debe tener al menos una mayúscula, una minúscula y un número',
   })
   password: string;
 

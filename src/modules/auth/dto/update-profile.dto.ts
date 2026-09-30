@@ -16,13 +16,13 @@ export class UpdateProfileDto {
   @ApiPropertyOptional({ example: 'Juan Pérez González' })
   @IsOptional()
   @IsString()
-  @MinLength(3)
-  @MaxLength(100)
+  @MinLength(3, { message: 'El nombre debe tener al menos 3 caracteres' })
+  @MaxLength(100, { message: 'El nombre no puede superar 100 caracteres' })
   name?: string;
 
   @ApiPropertyOptional({ example: 'juan.perez@uniamazonia.edu.co' })
   @IsOptional()
-  @IsEmail()
+  @IsEmail({}, { message: 'El correo electrónico no es válido' })
   email?: string;
 
   @ApiPropertyOptional({ description: 'Gender ID (UUID)' })

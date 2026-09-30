@@ -147,10 +147,10 @@ export class AuthController {
     description: 'Soft-deletes the authenticated user. Administrators cannot deactivate themselves.',
   })
   @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Account deactivated' })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Administrators cannot deactivate themselves' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Un administrador no puede desactivar su propia cuenta' })
   async deactivateProfile(@CurrentUser() user: UserEntity): Promise<void> {
     if (user.role?.name === UserRole.ADMIN) {
-      throw new ForbiddenException('Administrators cannot deactivate themselves');
+      throw new ForbiddenException('Un administrador no puede desactivar su propia cuenta');
     }
     await this.usersService.remove(user.id);
   }
