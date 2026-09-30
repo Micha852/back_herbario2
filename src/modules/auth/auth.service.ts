@@ -1,4 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { randomInt } from 'crypto';
+import { escapeHtml } from '../../common/utils/html.util';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -40,9 +42,7 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, {
-      secret:
-        this.configService.get<string>('JWT_REFRESH_SECRET') ||
-        'refresh-secret',
+      secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       expiresIn:
         this.configService.get<string>('JWT_REFRESH_EXPIRATION') || '7d',
     });
@@ -73,9 +73,7 @@ export class AuthService {
   async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
     try {
       const payload = this.jwtService.verify(refreshToken, {
-        secret:
-          this.configService.get<string>('JWT_REFRESH_SECRET') ||
-          'refresh-secret',
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
 
       const user = await this.usersService.findOne(payload.sub);
@@ -104,29 +102,35 @@ export class AuthService {
       return { message: 'Si el correo existe, recibirás instrucciones para recuperar tu contraseña' };
     }
 
-    // Generate 7-digit temporary password (like original HDUA)
-    const tempPassword = Math.floor(1000000 + Math.random() * 9000000).toString();
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    const genericMessage = { message: 'Si el correo existe, recibirás instrucciones para recuperar tu contraseña' };
 
-    // Update user password
+    // Contraseña temporal de 7 dígitos (como en HDUA 1.0), con generador criptográfico
+    const tempPassword = randomInt(1000000, 10000000).toString();
+
+    // Primero el correo: si no sale, NO se cambia la contraseña (el usuario no queda bloqueado)
+    try {
+      await this.mailService.sendMail({
+        to: user.email,
+        subject: 'Recuperación de contraseña - Herbario HUAZ',
+        html: `
+          <h2>Recuperación de contraseña</h2>
+          <p>Hola ${escapeHtml(user.name)},</p>
+          <p>Tu contraseña temporal es: <strong>${tempPassword}</strong></p>
+          <p>Inicia sesión y cámbiala desde "Mi perfil".</p>
+          <p>Tu contraseña anterior ya no funciona. Si no solicitaste este cambio, contacta al administrador del herbario.</p>
+          <br>
+          <p>Herbario Digital - Universidad de la Amazonia</p>
+        `,
+      });
+    } catch {
+      // Ya quedó registrado en MailService; misma respuesta para no revelar si el correo existe
+      return genericMessage;
+    }
+
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
     await this.usersService.updatePassword(user.id, hashedPassword);
 
-    // Send email with temporary password
-    await this.mailService.sendMail({
-      to: email,
-      subject: 'Recuperación de Contraseña - Herbario HDUA',
-      html: `
-        <h2>Recuperación de Contraseña</h2>
-        <p>Hola ${user.name},</p>
-        <p>Tu contraseña temporal es: <strong>${tempPassword}</strong></p>
-        <p>Por favor, inicia sesión y cambia tu contraseña inmediatamente.</p>
-        <p>Si no solicitaste este cambio, contacta al administrador.</p>
-        <br>
-        <p>Herbario Digital - Universidad de la Amazonia</p>
-      `,
-    });
-
-    return { message: 'Si el correo existe, recibirás instrucciones para recuperar tu contraseña' };
+    return genericMessage;
   }
 
   /**

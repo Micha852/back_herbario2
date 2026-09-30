@@ -28,6 +28,7 @@ import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { UserEntity } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
+import { Throttle } from '@nestjs/throttler';
 import { UserRole } from '../users/enums/user-role.enum';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -43,6 +44,7 @@ export class AuthController {
   ) {}
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
   @ApiOperation({
     summary: 'Register a new user',
@@ -64,6 +66,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // frena fuerza bruta
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @ApiOperation({
@@ -161,6 +164,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('forgot-password')
   @ApiOperation({
     summary: 'Request password recovery',

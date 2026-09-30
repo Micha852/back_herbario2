@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { validateEnv } from './config/env.validation';
 import { ServeStaticModule } from '@nestjs/serve-static';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -32,6 +34,7 @@ import { InstitutionsModule } from './modules/institutions/institutions.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validate: validateEnv,
     }),
 
     // Serve static files (uploads - for local Cloudinary-like service)
@@ -41,12 +44,11 @@ import { InstitutionsModule } from './modules/institutions/institutions.module';
     }),
 
     // Rate limiting
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 100,
-      },
-    ]),
+    // Límite general por IP (login/registro tienen límites propios en AuthController)
+    ThrottlerModule.forRoot({
+      throttlers: [{ ttl: 60000, limit: 300 }],
+      errorMessage: 'Demasiados intentos. Espera un minuto e inténtalo de nuevo.',
+    }),
 
     // Core modules
     DatabaseModule,
@@ -69,6 +71,6 @@ import { InstitutionsModule } from './modules/institutions/institutions.module';
     InstitutionsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule { }

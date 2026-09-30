@@ -39,9 +39,9 @@ export class LocalStorageService {
     subFolder?: string,
   ): Promise<StorageResult> {
     try {
-      // Generate unique filename
-      const ext = path.extname(originalName);
-      const filename = `${uuidv4()}${ext}`;
+      // Todas las versiones se generan en WebP (ImageProcessingService): la extensión lo refleja
+      const ext = path.extname(originalName).toLowerCase();
+      const filename = `${uuidv4()}${ext === '.webp' || buffer.subarray(8, 12).toString() === 'WEBP' ? '.webp' : ext}`;
 
       // Create directory structure: uploads/specimens/YYYY/MM/
       const now = new Date();

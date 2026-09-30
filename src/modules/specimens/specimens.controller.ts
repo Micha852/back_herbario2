@@ -360,29 +360,4 @@ export class SpecimensController {
   ) {
     return this.specimensService.removeCollector(id, userId, user.id);
   }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
-  @ApiBearerAuth()
-  @Patch(':id/image')
-  @ApiOperation({
-    summary: 'Set primary image for specimen',
-    description: 'Associates an image as the primary image for the specimen. Requires ADMIN or COLLABORATOR role.',
-  })
-  @ApiParam({ name: 'id', description: 'Specimen UUID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Image associated successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Specimen or image not found',
-  })
-  updateSpecimenImage(
-    @Param('id') id: string,
-    @Body('imageId') imageId: string,
-    @CurrentUser() user: UserEntity,
-  ) {
-    return this.specimensService.updateSpecimenImage(id, imageId, user.id);
-  }
 }

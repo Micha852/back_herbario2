@@ -37,6 +37,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/enums/user-role.enum';
 import { IMAGE_TYPES, UpdateImageDto } from './dto/update-image.dto';
 import { isUUID } from 'class-validator';
+import { SkipThrottle } from '@nestjs/throttler';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 
 @ApiTags('Images')
@@ -108,6 +109,7 @@ export class ImagesController {
   }
 
   @Public()
+  @SkipThrottle() // la galería pide muchas imágenes
   @Get(':id')
   @ApiOperation({
     summary: 'Get image with transformations (Cloudinary-like)',
@@ -150,6 +152,7 @@ export class ImagesController {
   }
 
   @Public()
+  @SkipThrottle()
   @Get(':id/metadata')
   @ApiOperation({ summary: 'Get image metadata' })
   @ApiParam({ name: 'id', description: 'Image UUID' })

@@ -6,6 +6,19 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting database seeding...');
 
+  // Seguro: este seed BORRA TODA LA BASE. Si ya hay datos, exige --reset explícito.
+  // (prisma migrate reset ya vacía la base antes de llamarlo, así que ahí no se detiene)
+  const [users, specimens] = await Promise.all([prisma.user.count(), prisma.specimen.count()]);
+  if ((users > 0 || specimens > 0) && !process.argv.includes('--reset')) {
+    console.error(
+      `\n⛔ La base ya tiene datos (${users} usuarios, ${specimens} muestras) y este seed BORRA TODO.\n` +
+        '   Si de verdad quieres empezar de cero: npm run prisma:seed -- --reset\n' +
+        '   Para solo agregar muestras de prueba: npm run prisma:seed:specimens\n',
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   // Clean existing data (careful in production!)
   console.log('Cleaning existing data...');
   await prisma.comment.deleteMany();

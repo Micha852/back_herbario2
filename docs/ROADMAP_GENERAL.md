@@ -131,34 +131,35 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 ### Seguridad (prioridad alta)
 - [x] 🚨 `GET /specimens`, comentarios y reportes exponían el hash de contraseña de usuarios (`include: { user: true }`). Ahora usan `publicUserSelect` (`src/common/prisma/user-select.ts`).
 - [x] `GET /auth/profile` devolvía el hash de contraseña (interceptor `ClassSerializerInterceptor` global).
-- [ ] `PUT /api/v1/system-info/:key` público → proteger con JWT + `ADMINISTRADOR`.
+- [x] `PUT /api/v1/system-info/:key` protegido (JWT + `ADMINISTRADOR`); el editor CMS usa `apiFetch`.
 - [x] `images` (`upload`, `PATCH`, `DELETE`, `primary`): restringido a ADMIN/COLABORADOR; `PATCH` con DTO validado.
-- [ ] Secretos JWT por defecto en código (`'your-super-secret-jwt-key'`, `'refresh-secret'`) → fallar si no están en `.env`.
-- [ ] Texto del buzón de sugerencias se inserta sin escapar en el HTML del correo.
-- [ ] `ThrottlerModule` configurado pero sin `ThrottlerGuard` global.
-- [ ] Front: guardas solo en cliente; `/panel/cms` sin chequeo de rol ADMIN.
+- [x] Sin secretos JWT por defecto: `src/config/env.validation.ts` exige `JWT_SECRET` y `JWT_REFRESH_SECRET` (en producción: ≥32 caracteres y no de ejemplo).
+- [x] Correos con datos del usuario escapados (`escapeHtml`). Recuperar contraseña: primero se envía el correo y solo si sale se cambia la contraseña. Sin SMTP en desarrollo, los correos se muestran en consola.
+- [x] Rate limiting activo (`ThrottlerGuard` global, 300/min por IP; login 10/min, registro 5/min, recuperar 3/min; imágenes sin límite).
+- [x] Front: `/panel/cms` y `/panel/usuarios` solo para ADMIN en el layout del panel (el back valida igual).
+- [x] Comentarios: solo el autor edita (antes ADMIN editaba textos ajenos); muestras inactivas sin comentarios públicos.
 
 ### Back
 - [x] `GET /images/:id?version=...` respondía 400 (`version` no estaba en `TransformImageDto`).
 - [x] Filtros taxonómicos de `GET /specimens` (anidar por `species.genus.family…`).
 - [x] Añadir filtros `departmentId`, `municipalityId`, `startDate`, `endDate`, `search` y `sort`.
-- [ ] Taxonomía: DTOs con padre + `epithet` en especie.
+- [ ] Taxonomía: DTOs con padre + `epithet` en especie (→ Fase C, catálogos).
 - [x] `PATCH /specimens/:id` con `UpdateSpecimenDto` real (`PartialType`), y `createdBy`/`updatedBy` registrados en crear y editar.
-- [ ] `PATCH specimens/:id/image` declarado dos veces.
-- [ ] Contador de catálogo no atómico.
-- [ ] Imágenes WebP guardadas con extensión original.
-- [ ] Puerto: `.env.example` dice 3000 y el front espera 4000 (`.env` local ya usa 4000).
-- [ ] Variables de entorno: el código y `.env.example` no coinciden (✅ `JWT_EXPIRES_IN` ya se lee; pendientes `MAIL_*` vs `SMTP_*`, faltan `JWT_REFRESH_*`, `CORS_ORIGIN`, `APP_URL`, `HERBARIO_EMAIL`).
-- [ ] El banner de arranque anuncia `/api/health`, que no existe.
-- [ ] Seed de migración `20260125025500_seed_initial_data` con admin `admin@udla.edu.co` distinto a `seed.ts`; hash probablemente inválido.
-- [ ] ⚠️ `prisma/seed.ts` **borra toda la base** antes de sembrar.
+- [x] `PATCH specimens/:id/image` duplicado eliminado.
+- [x] Contador de catálogo atómico (`upsert` + `increment`) y salta números ya usados.
+- [x] Imágenes nuevas guardadas con extensión `.webp` (las anteriores conservan su nombre).
+- [x] `.env.example` completo y alineado con el código (puerto 4000, JWT, SMTP `MAIL_*`, CORS, etc.).
+- [x] Variables de entorno alineadas; validación al arrancar.
+- [x] `GET /api/v1/health` (API + base de datos; 503 si la base no responde).
+- [ ] Seed de migración `20260125025500_seed_initial_data` con admin `admin@udla.edu.co` (hash probablemente inválido). No se edita: la migración ya está aplicada; no afecta porque `seed.ts` crea el admin real.
+- [x] `prisma/seed.ts` borra toda la base: ahora se niega si hay datos, salvo `npm run prisma:seed -- --reset`.
 
 ### Front
 - [x] 401 redirige a `/auth/login?session=expired` (ruta inexistente → `/login`).
 - [ ] Solo `specimens.service` usa `apiFetch`; unificar el resto de servicios.
 - [ ] Servicios sin uso: `catalogs.service.ts`, `cms.service.ts`. Página duplicada `/contactos`.
-- [ ] `console.log` de depuración en crear muestra y `specimens.service`.
-- [ ] Botón "Panel de control" visible para todos en `/consultas`; comparaciones de rol inconsistentes (`user.role` vs `user.role.name`).
+- [x] `console.log` de depuración en crear muestra, `specimens.service` y editor CMS eliminados.
+- [x] Botón "Panel de control" solo para ADMIN/COLABORADOR; roles con `getRoleName()`.
 - [ ] Assets vacíos de plantilla en `public/` y `find-cascade.ps1` suelto.
 
 ### Ambos
@@ -169,14 +170,14 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 
 ## 5. Plan por fases
 
-### Fase A - Estabilizar back ⏳
-- [ ] Arreglos de seguridad (sección 4).
-- [ ] Filtros de búsqueda de muestras (taxonomía, ubicación, fechas).
-- [ ] DTOs de taxonomía (✅ `UpdateSpecimenDto` hecho).
-- [ ] Alinear `.env.example` con el código.
+### Fase A - Estabilizar back ✅
+- [x] Arreglos de seguridad (sección 4).
+- [x] Filtros de búsqueda de muestras (taxonomía, ubicación, fechas).
+- [x] `UpdateSpecimenDto` (los DTOs de taxonomía pasan a Fase C, catálogos).
+- [x] Alinear `.env.example` con el código.
 - [x] Seed de **muestras de prueba** (`npm run prisma:seed:specimens`): 18 muestras, 3 ubicaciones y 2 proyectos; no borra datos y no duplica. Sin imágenes (se cargan desde el panel).
 
-### Fase B - Consulta pública real ⏳
+### Fase B - Consulta pública real ✅
 - [x] `/consultas`, `/consultas/avanzada`, `/consultas/resultados`, `/consultas/[id]` consumiendo el API (mocks eliminados).
 - [x] Resultados como galería de tarjetas con imagen principal y paginación.
 - [x] Ficha: carrusel de imágenes con zoom.

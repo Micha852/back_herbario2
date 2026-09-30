@@ -76,25 +76,22 @@ export class SpecimensService {
    * Generate next catalog number (e.g., HUAZ-000001)
    */
   private async generateCatalogNumber(): Promise<string> {
-    const counter = await this.prisma.catalogCounter.findFirst({
-      where: { prefix: 'HUAZ' },
-    });
-
-    if (!counter) {
-      // Create counter if not exists
-      const newCounter = await this.prisma.catalogCounter.create({
-        data: { prefix: 'HUAZ', lastNumber: 1 },
+    // Incremento atómico en la base: dos creaciones simultáneas no reciben el mismo número.
+    // Se saltan números ya usados (p. ej. escritos a mano en el formulario).
+    for (let attempt = 0; attempt < 1000; attempt++) {
+      const counter = await this.prisma.catalogCounter.upsert({
+        where: { prefix: 'HUAZ' },
+        update: { lastNumber: { increment: 1 } },
+        create: { prefix: 'HUAZ', lastNumber: 1 },
       });
-      return `HUAZ-${String(newCounter.lastNumber).padStart(6, '0')}`;
+      const candidate = `HUAZ-${String(counter.lastNumber).padStart(6, '0')}`;
+      const taken = await this.prisma.specimen.findUnique({
+        where: { catalogNumber: candidate },
+        select: { id: true },
+      });
+      if (!taken) return candidate;
     }
-
-    // Increment counter
-    const updated = await this.prisma.catalogCounter.update({
-      where: { id: counter.id },
-      data: { lastNumber: counter.lastNumber + 1 },
-    });
-
-    return `HUAZ-${String(updated.lastNumber).padStart(6, '0')}`;
+    throw new BadRequestException('No se pudo generar un número de catálogo disponible');
   }
 
   /**
@@ -477,33 +474,4 @@ export class SpecimensService {
     return this.prisma.habitat.create({ data: { name } });
   }
 
-  /**
-   * Associate an image with a specimen as primary image
-   */
-  async updateSpecimenImage(specimenId: string, imageId: string, userId?: string) {
-    // Verify specimen exists
-    const specimen = await this.prisma.specimen.findUnique({
-      where: { id: specimenId },
-    });
-
-    if (!specimen) {
-      throw new NotFoundException(`Specimen with ID ${specimenId} not found`);
-    }
-
-    // Verify image exists
-    const image = await this.prisma.specimenImage.findUnique({
-      where: { id: imageId },
-    });
-
-    if (!image) {
-      throw new NotFoundException(`Image with ID ${imageId} not found`);
-    }
-
-    // Update specimen with the image
-    return this.prisma.specimen.update({
-      where: { id: specimenId },
-      data: { imageId, ...(userId && { updatedById: userId }) },
-      include: this.includeRelations,
-    });
-  }
 }

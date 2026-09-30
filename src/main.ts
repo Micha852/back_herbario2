@@ -94,7 +94,7 @@ async function bootstrap() {
     ║   Environment: ${nodeEnv.padEnd(46)}║
     ║   Port:        ${String(port).padEnd(46)}║
     ║   API Docs:    http://localhost:${port}/api/docs${' '.repeat(22)}║
-    ║   Health:      http://localhost:${port}/api/health${' '.repeat(20)}║
+    ║   Health:      http://localhost:${port}/api/v1/health${' '.repeat(17)}║
     ║                                                           ║
     ╚═══════════════════════════════════════════════════════════╝
   `);

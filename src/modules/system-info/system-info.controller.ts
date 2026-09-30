@@ -8,6 +8,7 @@ import {
     HttpCode,
     HttpStatus,
 } from '@nestjs/common';
+import { ApiBearerAuth } from '@nestjs/swagger';
 import { SystemInfoService } from './system-info.service';
 import { UpdateSystemInfoDto } from './dto/update-system-info.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -43,11 +44,12 @@ export class SystemInfoController {
     }
 
     /**
-     * PUT /api/system-info/:key
-     * Actualiza el contenido de un registro
-     * TEMPORAL: Público para desarrollo - DEBE protegerse en producción
+     * PUT /api/v1/system-info/:key
+     * Actualiza el contenido de un registro (solo ADMINISTRADOR)
      */
-    @Public()
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    @ApiBearerAuth()
     @Put(':key')
     @HttpCode(HttpStatus.OK)
     async update(
