@@ -37,6 +37,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/enums/user-role.enum';
 import { IMAGE_TYPES, UpdateImageDto } from './dto/update-image.dto';
 import { isUUID } from 'class-validator';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 
 @ApiTags('Images')
 @Controller('images')
@@ -202,7 +203,7 @@ export class ImagesController {
   @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
   @ApiBearerAuth()
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete image (soft delete)' })
+  @ApiOperation({ summary: 'Delete image permanently (files + record). To hide it instead, PATCH isActive=false' })
   @ApiParam({ name: 'id', description: 'Image UUID' })
   @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Image deleted' })
   async deleteImage(@Param('id') id: string): Promise<void> {
@@ -210,18 +211,33 @@ export class ImagesController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('specimen/:specimenId')
-  @ApiOperation({ summary: 'Get all images for a specimen' })
+  @ApiOperation({
+    summary: 'Get all images for a specimen',
+    description: 'Public: only enabled images. ADMIN/COLLABORATOR can pass includeInactive=true to also get disabled ones.',
+  })
   @ApiParam({ name: 'specimenId', description: 'Specimen UUID' })
+  @ApiQuery({ name: 'includeInactive', required: false, type: Boolean })
   @ApiResponse({ status: HttpStatus.OK, description: 'Images retrieved' })
-  async getImagesBySpecimen(@Param('specimenId') specimenId: string) {
-    const images = await this.imagesService.getImagesBySpecimen(specimenId);
+  async getImagesBySpecimen(
+    @Param('specimenId') specimenId: string,
+    @CurrentUser() user: UserEntity | null,
+    @Query('includeInactive') includeInactive?: string,
+  ) {
+    const role = user?.role?.name;
+    const isStaff = role === UserRole.ADMIN || role === UserRole.COLLABORATOR;
+    const images = await this.imagesService.getImagesBySpecimen(
+      specimenId,
+      isStaff && includeInactive === 'true',
+    );
     return images.map((image) => ({
       id: image.id,
       originalName: image.originalName,
       imageType: image.imageType,
       caption: image.caption,
       isPrimary: image.isPrimary,
+      isActive: image.isActive,
       sortOrder: image.sortOrder,
       urls: {
         original: this.imagesService.getImageUrl(image.id),

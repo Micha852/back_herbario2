@@ -46,17 +46,19 @@ export class ImagesService {
       if (!specimen) {
         throw new NotFoundException(`Specimen with ID ${specimenId} not found`);
       }
-      const activeImages = await this.prisma.specimenImage.count({
-        where: { specimenId, isActive: true },
-      });
-      if (activeImages >= MAX_IMAGES_PER_SPECIMEN) {
+      // El límite cuenta también las inhabilitadas (siguen ocupando espacio)
+      const totalImages = await this.prisma.specimenImage.count({ where: { specimenId } });
+      if (totalImages >= MAX_IMAGES_PER_SPECIMEN) {
         throw new BadRequestException(
           `Una muestra puede tener como máximo ${MAX_IMAGES_PER_SPECIMEN} imágenes`,
         );
       }
-      // La primera imagen de la muestra queda como principal
-      isPrimary = activeImages === 0;
-      sortOrder = activeImages;
+      // Queda como principal si la muestra no tiene una principal activa
+      const activePrimary = await this.prisma.specimenImage.count({
+        where: { specimenId, isActive: true, isPrimary: true },
+      });
+      isPrimary = activePrimary === 0;
+      sortOrder = totalImages;
     }
 
     try {
@@ -148,14 +150,16 @@ export class ImagesService {
   }
 
   /**
-   * Get image metadata by ID
+   * Get image metadata by ID.
+   * isActive=false significa "inhabilitada" (oculta al público, el archivo existe),
+   * así que también se devuelve: el equipo la sigue viendo en el gestor.
    */
   async getImage(id: string) {
     const image = await this.prisma.specimenImage.findUnique({
       where: { id },
     });
 
-    if (!image || !image.isActive) {
+    if (!image) {
       throw new NotFoundException(`Image with ID ${id} not found`);
     }
 
@@ -218,51 +222,34 @@ export class ImagesService {
   }
 
   /**
-   * Delete image and all its versions
+   * Eliminar imagen de una muestra: borra archivos y registro (hard delete).
+   * Si era la principal, la siguiente imagen activa pasa a serlo.
+   * Para ocultarla sin borrarla, usar updateImage({ isActive: false }).
    */
   async deleteImage(id: string): Promise<void> {
     const image = await this.getImage(id);
-
-    // Collect all file paths
-    const pathsToDelete = [image.filePath];
-    if (image.thumbnailPath) pathsToDelete.push(image.thumbnailPath);
-    if (image.mediumPath) pathsToDelete.push(image.mediumPath);
-    if (image.largePath) pathsToDelete.push(image.largePath);
-
-    // Delete all files from disk
-    for (const path of pathsToDelete) {
-      try {
-        await this.storageService.deleteFile(path);
-      } catch (error) {
-        this.logger.warn(`Failed to delete file ${path}: ${error.message}`);
-      }
-    }
-
-    // Soft delete from database
-    await this.prisma.specimenImage.update({
-      where: { id },
-      data: { isActive: false, isPrimary: false },
-    });
-
-    // Si era la principal, la siguiente imagen activa pasa a serlo
+    await this.hardDeleteImage(id);
     if (image.isPrimary && image.specimenId) {
-      const next = await this.prisma.specimenImage.findFirst({
-        where: { specimenId: image.specimenId, isActive: true },
-        orderBy: { sortOrder: 'asc' },
-      });
-      if (next) {
-        await this.prisma.specimenImage.update({
-          where: { id: next.id },
-          data: { isPrimary: true },
-        });
-      }
+      await this.promoteNextPrimary(image.specimenId);
     }
+  }
 
-    this.logger.log(`Image deleted: ${id}`);
+  /** Marca como principal la primera imagen activa de la muestra (si hay) */
+  private async promoteNextPrimary(specimenId: string): Promise<void> {
+    const next = await this.prisma.specimenImage.findFirst({
+      where: { specimenId, isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+    if (next) {
+      await this.prisma.specimenImage.update({
+        where: { id: next.id },
+        data: { isPrimary: true },
+      });
+    }
   }
 
   /**
-   * Hard delete (remove from database completely)
+   * Hard delete (remove files and database record)
    */
   async hardDeleteImage(id: string): Promise<void> {
     const image = await this.getImage(id);
@@ -292,9 +279,9 @@ export class ImagesService {
   /**
    * Get images by specimen ID
    */
-  async getImagesBySpecimen(specimenId: string) {
+  async getImagesBySpecimen(specimenId: string, includeInactive = false) {
     return this.prisma.specimenImage.findMany({
-      where: { specimenId, isActive: true },
+      where: { specimenId, ...(!includeInactive && { isActive: true }) },
       orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
     });
   }
@@ -307,6 +294,9 @@ export class ImagesService {
     const specimenId = image.specimenId;
     if (!specimenId) {
       throw new BadRequestException('La imagen no está asociada a ninguna muestra');
+    }
+    if (!image.isActive) {
+      throw new BadRequestException('Una imagen inhabilitada no puede ser la principal. Habilítala primero.');
     }
 
     // First, unset all primary images for this specimen
@@ -326,11 +316,31 @@ export class ImagesService {
    * Update image metadata
    */
   async updateImage(id: string, data: UpdateImageDto) {
-    await this.getImage(id);
-    return this.prisma.specimenImage.update({
+    const image = await this.getImage(id);
+    const disabling = data.isActive === false && image.isActive;
+    const enabling = data.isActive === true && !image.isActive;
+
+    const updated = await this.prisma.specimenImage.update({
       where: { id },
-      data,
+      // Una imagen inhabilitada nunca queda como principal
+      data: { ...data, ...(disabling && { isPrimary: false }) },
     });
+
+    if (image.specimenId) {
+      if (disabling && image.isPrimary) {
+        await this.promoteNextPrimary(image.specimenId);
+      }
+      if (enabling) {
+        const hasPrimary = await this.prisma.specimenImage.count({
+          where: { specimenId: image.specimenId, isActive: true, isPrimary: true },
+        });
+        if (hasPrimary === 0) {
+          return this.prisma.specimenImage.update({ where: { id }, data: { isPrimary: true } });
+        }
+      }
+    }
+
+    return updated;
   }
 
   /**
