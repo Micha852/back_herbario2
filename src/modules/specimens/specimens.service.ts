@@ -113,8 +113,9 @@ export class SpecimensService {
           ...data,
           catalogNumber,
           collectionDate: collectionDate ? new Date(collectionDate) : null,
-          latitude: latitude !== undefined ? new Decimal(latitude) : null,
-          longitude: longitude !== undefined ? new Decimal(longitude) : null,
+          collectionYear: collectionDate ? new Date(collectionDate).getUTCFullYear() : null,
+          latitude: latitude != null ? new Decimal(latitude) : null,
+          longitude: longitude != null ? new Decimal(longitude) : null,
           isActive: dto.isActive ?? true,
           createdById: userId ?? null,
           updatedById: userId ?? null,
@@ -285,13 +286,20 @@ export class SpecimensService {
 
     const { collectorIds, collectionDate, latitude, longitude, ...data } = dto;
 
+    // undefined = no cambiar · null = limpiar el campo
+    const toDecimal = (value: number | null | undefined) =>
+      value === undefined ? undefined : value === null ? null : new Decimal(value);
+    const date =
+      collectionDate === undefined ? undefined : collectionDate ? new Date(collectionDate) : null;
+
     const specimen = await this.prisma.specimen.update({
       where: { id },
       data: {
         ...data,
-        collectionDate: collectionDate ? new Date(collectionDate) : undefined,
-        latitude: latitude !== undefined ? new Decimal(latitude) : undefined,
-        longitude: longitude !== undefined ? new Decimal(longitude) : undefined,
+        collectionDate: date,
+        ...(date !== undefined && { collectionYear: date ? date.getUTCFullYear() : null }),
+        latitude: toDecimal(latitude),
+        longitude: toDecimal(longitude),
         ...(userId && { updatedById: userId }),
       },
       include: this.includeRelations,

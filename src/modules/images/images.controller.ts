@@ -32,13 +32,19 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { UserEntity } from '../users/entities/user.entity';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../users/enums/user-role.enum';
+import { IMAGE_TYPES, UpdateImageDto } from './dto/update-image.dto';
+import { isUUID } from 'class-validator';
 
 @ApiTags('Images')
 @Controller('images')
 export class ImagesController {
   constructor(private readonly imagesService: ImagesService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
   @ApiBearerAuth()
   @Post('upload')
   @ApiOperation({
@@ -48,7 +54,8 @@ export class ImagesController {
   })
   @ApiConsumes('multipart/form-data')
   @ApiQuery({ name: 'specimenId', required: false, description: 'Associate with specimen' })
-  @ApiQuery({ name: 'imageType', required: false, description: 'Image type (habit, leaf, flower, etc.)' })
+  @ApiQuery({ name: 'imageType', required: false, enum: IMAGE_TYPES, description: 'Image type (habit, leaf, flower, etc.)' })
+  @ApiQuery({ name: 'caption', required: false, description: 'Image caption' })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Image uploaded successfully',
@@ -75,9 +82,19 @@ export class ImagesController {
     @CurrentUser() user: UserEntity,
     @Query('specimenId') specimenId?: string,
     @Query('imageType') imageType?: string,
+    @Query('caption') caption?: string,
   ): Promise<UploadImageResponseDto> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
+    }
+    if (specimenId && !isUUID(specimenId)) {
+      throw new BadRequestException('specimenId must be a UUID');
+    }
+    if (imageType && !(IMAGE_TYPES as readonly string[]).includes(imageType)) {
+      throw new BadRequestException(`imageType must be one of: ${IMAGE_TYPES.join(', ')}`);
+    }
+    if (caption && caption.length > 255) {
+      throw new BadRequestException('caption must be shorter than or equal to 255 characters');
     }
 
     return this.imagesService.uploadImage(
@@ -85,6 +102,7 @@ export class ImagesController {
       specimenId,
       user.id,
       imageType || 'general',
+      caption,
     );
   }
 
@@ -157,34 +175,31 @@ export class ImagesController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
   @ApiBearerAuth()
   @Patch(':id')
-  @ApiOperation({ summary: 'Update image metadata' })
+  @ApiOperation({ summary: 'Update image metadata (caption, type, order)' })
   @ApiParam({ name: 'id', description: 'Image UUID' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Image updated' })
-  async updateImage(
-    @Param('id') id: string,
-    @Body() data: { caption?: string; imageType?: string; sortOrder?: number },
-  ) {
+  async updateImage(@Param('id') id: string, @Body() data: UpdateImageDto) {
     return this.imagesService.updateImage(id, data);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
   @ApiBearerAuth()
   @Patch(':id/primary')
-  @ApiOperation({ summary: 'Set as primary image for specimen' })
+  @ApiOperation({ summary: 'Set as primary image of its specimen' })
   @ApiParam({ name: 'id', description: 'Image UUID' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Primary image set' })
-  async setPrimaryImage(
-    @Param('id') id: string,
-    @Body('specimenId') specimenId: string,
-  ) {
-    await this.imagesService.setPrimaryImage(id, specimenId);
+  async setPrimaryImage(@Param('id') id: string) {
+    await this.imagesService.setPrimaryImage(id);
     return { message: 'Primary image set successfully' };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
   @ApiBearerAuth()
   @Delete(':id')
   @ApiOperation({ summary: 'Delete image (soft delete)' })

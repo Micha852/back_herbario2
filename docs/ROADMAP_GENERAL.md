@@ -85,9 +85,9 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 | Dashboard | CU-003 | ⚠️ | ⚠️ | Solo el total de muestras es real |
 | Listado con búsqueda, filtros y paginación | CU-007 | ✅ | ✅ | |
 | Crear muestra (asistente 6 pasos) | CU-004 | ✅ | ✅ | Número de catálogo `HUAZ-000001` automático |
-| Subir varias imágenes al crear | D3 | ✅ | ⚠️ | El front no envía `specimenId`/`imageType`; solo asocia la primera; los pies de foto no se guardan |
-| Editar muestra | CU-005 | ✅ | ❌ | Back: validado y registra `updatedBy`. Front: `/panel/muestras/[id]/editar` no existe (404) |
-| Gestionar imágenes de una muestra (agregar, quitar, marcar principal) | D3 | ✅ | ❌ | |
+| Subir varias imágenes al crear | D3 | ✅ | ✅ | Se asocian con tipo y descripción; la primera queda como principal; máximo 10 |
+| Editar muestra | CU-005 | ✅ | ✅ | `/panel/muestras/[id]/editar`: mismo asistente precargado, navegación libre entre pasos, interruptor activa/inactiva |
+| Gestionar imágenes de una muestra (agregar, quitar, marcar principal) | D3 | ✅ | ✅ | En el paso 6 de editar; los cambios se guardan al instante |
 | Eliminar / desactivar | CU-006 | ⚠️ | ✅ | *Hard delete* (decisión tomada, commit `d9a581f`) |
 | Asignar / quitar recolectores | HDUA | ✅ | ✅ | Front los asigna dos veces al crear |
 
@@ -132,7 +132,7 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 - [x] 🚨 `GET /specimens`, comentarios y reportes exponían el hash de contraseña de usuarios (`include: { user: true }`). Ahora usan `publicUserSelect` (`src/common/prisma/user-select.ts`).
 - [x] `GET /auth/profile` devolvía el hash de contraseña (interceptor `ClassSerializerInterceptor` global).
 - [ ] `PUT /api/v1/system-info/:key` público → proteger con JWT + `ADMINISTRADOR`.
-- [ ] `images` (`upload`, `PATCH`, `DELETE`, `primary`): cualquier usuario logueado puede modificar imágenes → restringir a ADMIN/COLABORADOR.
+- [x] `images` (`upload`, `PATCH`, `DELETE`, `primary`): restringido a ADMIN/COLABORADOR; `PATCH` con DTO validado.
 - [ ] Secretos JWT por defecto en código (`'your-super-secret-jwt-key'`, `'refresh-secret'`) → fallar si no están en `.env`.
 - [ ] Texto del buzón de sugerencias se inserta sin escapar en el HTML del correo.
 - [ ] `ThrottlerModule` configurado pero sin `ThrottlerGuard` global.
@@ -184,8 +184,8 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 - [ ] Comentarios en la ficha: publicar, editar propio, eliminar (listar ✅).
 
 ### Fase C - Panel completo ⏳
-- [ ] Editar muestra (`/panel/muestras/[id]/editar`), reutilizando el asistente.
-- [ ] Imágenes múltiples: arreglar subida al crear + gestión en edición (principal, tipo, pie, quitar).
+- [x] Editar muestra (`/panel/muestras/[id]/editar`), reutilizando el asistente (`components/panel/specimen-form/specimen-form.tsx`).
+- [x] Imágenes múltiples: subida al crear + gestión en edición (principal, tipo, descripción, quitar).
 - [ ] Catálogos: taxonomía, morfología, referencias, ubicaciones, proyectos/protocolos.
 - [ ] Usuarios (`/panel/usuarios`): listar, rol, recolector, estado.
 - [ ] Dashboard con datos reales.

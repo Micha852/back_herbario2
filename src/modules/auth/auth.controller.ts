@@ -9,6 +9,8 @@ import {
   Delete,
   HttpCode,
   ForbiddenException,
+  UseInterceptors,
+  ClassSerializerInterceptor,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -30,6 +32,9 @@ import { UserRole } from '../users/enums/user-role.enum';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @ApiTags('Auth')
+// Aplica @Exclude() de UserEntity (nunca devolver el hash de la contraseña).
+// No es global: class-transformer rompe la serialización de los Decimal de Prisma.
+@UseInterceptors(ClassSerializerInterceptor)
 @Controller('auth')
 export class AuthController {
   constructor(

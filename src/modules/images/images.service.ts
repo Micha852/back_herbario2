@@ -9,6 +9,7 @@ import { LocalStorageService } from './storage/local-storage.service';
 import { ImageProcessingService } from './processors/image-processing.service';
 import { UploadImageResponseDto } from './dto/upload-image.dto';
 import { TransformImageDto } from './dto/transform-image.dto';
+import { MAX_IMAGES_PER_SPECIMEN, UpdateImageDto } from './dto/update-image.dto';
 
 export interface ImageVersions {
   original: { path: string; size: number; width?: number; height?: number };
@@ -35,7 +36,29 @@ export class ImagesService {
     specimenId: string | undefined,
     uploadedBy: string,
     imageType: string = 'general',
+    caption?: string,
   ): Promise<UploadImageResponseDto> {
+    // Validaciones de la muestra antes de procesar el archivo
+    let isPrimary = false;
+    let sortOrder = 0;
+    if (specimenId) {
+      const specimen = await this.prisma.specimen.findUnique({ where: { id: specimenId } });
+      if (!specimen) {
+        throw new NotFoundException(`Specimen with ID ${specimenId} not found`);
+      }
+      const activeImages = await this.prisma.specimenImage.count({
+        where: { specimenId, isActive: true },
+      });
+      if (activeImages >= MAX_IMAGES_PER_SPECIMEN) {
+        throw new BadRequestException(
+          `Una muestra puede tener como máximo ${MAX_IMAGES_PER_SPECIMEN} imágenes`,
+        );
+      }
+      // La primera imagen de la muestra queda como principal
+      isPrimary = activeImages === 0;
+      sortOrder = activeImages;
+    }
+
     try {
       // Validate image
       const isValid = await this.processingService.validateImage(file.buffer);
@@ -70,10 +93,19 @@ export class ImagesService {
           mediumPath: savedVersions.medium?.path || null,
           largePath: savedVersions.large?.path || null,
           imageType,
-          isPrimary: false,
+          caption: caption?.trim() || null,
+          sortOrder,
+          isPrimary,
           isActive: true,
         },
       });
+
+      if (specimenId) {
+        await this.prisma.specimen.update({
+          where: { id: specimenId },
+          data: { updatedById: uploadedBy },
+        });
+      }
 
       this.logger.log(`Image uploaded: ${image.id} (${versions.size} versions)`);
 
@@ -209,8 +241,22 @@ export class ImagesService {
     // Soft delete from database
     await this.prisma.specimenImage.update({
       where: { id },
-      data: { isActive: false },
+      data: { isActive: false, isPrimary: false },
     });
+
+    // Si era la principal, la siguiente imagen activa pasa a serlo
+    if (image.isPrimary && image.specimenId) {
+      const next = await this.prisma.specimenImage.findFirst({
+        where: { specimenId: image.specimenId, isActive: true },
+        orderBy: { sortOrder: 'asc' },
+      });
+      if (next) {
+        await this.prisma.specimenImage.update({
+          where: { id: next.id },
+          data: { isPrimary: true },
+        });
+      }
+    }
 
     this.logger.log(`Image deleted: ${id}`);
   }
@@ -256,7 +302,13 @@ export class ImagesService {
   /**
    * Set primary image for specimen
    */
-  async setPrimaryImage(imageId: string, specimenId: string): Promise<void> {
+  async setPrimaryImage(imageId: string): Promise<void> {
+    const image = await this.getImage(imageId);
+    const specimenId = image.specimenId;
+    if (!specimenId) {
+      throw new BadRequestException('La imagen no está asociada a ninguna muestra');
+    }
+
     // First, unset all primary images for this specimen
     await this.prisma.specimenImage.updateMany({
       where: { specimenId, isPrimary: true },
@@ -273,14 +325,8 @@ export class ImagesService {
   /**
    * Update image metadata
    */
-  async updateImage(
-    id: string,
-    data: {
-      caption?: string;
-      imageType?: string;
-      sortOrder?: number;
-    },
-  ) {
+  async updateImage(id: string, data: UpdateImageDto) {
+    await this.getImage(id);
     return this.prisma.specimenImage.update({
       where: { id },
       data,
