@@ -86,7 +86,7 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 | Listado con búsqueda, filtros y paginación | CU-007 | ✅ | ✅ | |
 | Crear muestra (asistente 6 pasos) | CU-004 | ✅ | ✅ | Número de catálogo `HUAZ-000001` automático |
 | Subir varias imágenes al crear | D3 | ✅ | ⚠️ | El front no envía `specimenId`/`imageType`; solo asocia la primera; los pies de foto no se guardan |
-| Editar muestra | CU-005 | ⚠️ | ❌ | Back: `PATCH` sin validación de DTO. Front: `/panel/muestras/[id]/editar` no existe (404) |
+| Editar muestra | CU-005 | ✅ | ❌ | Back: validado y registra `updatedBy`. Front: `/panel/muestras/[id]/editar` no existe (404) |
 | Gestionar imágenes de una muestra (agregar, quitar, marcar principal) | D3 | ✅ | ❌ | |
 | Eliminar / desactivar | CU-006 | ⚠️ | ✅ | *Hard delete* (decisión tomada, commit `d9a581f`) |
 | Asignar / quitar recolectores | HDUA | ✅ | ✅ | Front los asigna dos veces al crear |
@@ -143,7 +143,7 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 - [x] Filtros taxonómicos de `GET /specimens` (anidar por `species.genus.family…`).
 - [x] Añadir filtros `departmentId`, `municipalityId`, `startDate`, `endDate`, `search` y `sort`.
 - [ ] Taxonomía: DTOs con padre + `epithet` en especie.
-- [ ] `PATCH /specimens/:id` con `UpdateSpecimenDto` real (`PartialType`).
+- [x] `PATCH /specimens/:id` con `UpdateSpecimenDto` real (`PartialType`), y `createdBy`/`updatedBy` registrados en crear y editar.
 - [ ] `PATCH specimens/:id/image` declarado dos veces.
 - [ ] Contador de catálogo no atómico.
 - [ ] Imágenes WebP guardadas con extensión original.
@@ -172,9 +172,9 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 ### Fase A - Estabilizar back ⏳
 - [ ] Arreglos de seguridad (sección 4).
 - [ ] Filtros de búsqueda de muestras (taxonomía, ubicación, fechas).
-- [ ] DTOs de taxonomía y `UpdateSpecimenDto`.
+- [ ] DTOs de taxonomía (✅ `UpdateSpecimenDto` hecho).
 - [ ] Alinear `.env.example` con el código.
-- [ ] Seed de **muestras de prueba con imágenes** (sin borrar la base, o con flag explícito).
+- [x] Seed de **muestras de prueba** (`npm run prisma:seed:specimens`): 18 muestras, 3 ubicaciones y 2 proyectos; no borra datos y no duplica. Sin imágenes (se cargan desde el panel).
 
 ### Fase B - Consulta pública real ⏳
 - [x] `/consultas`, `/consultas/avanzada`, `/consultas/resultados`, `/consultas/[id]` consumiendo el API (mocks eliminados).

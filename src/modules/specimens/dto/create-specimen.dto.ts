@@ -76,32 +76,8 @@ export class CreateSpecimenDto {
   @Type(() => Number)
   altitude?: number;
 
-  // Taxonomic classification
-  @ApiPropertyOptional({ description: 'Division ID' })
-  @IsOptional()
-  @IsUUID()
-  divisionId?: string;
-
-  @ApiPropertyOptional({ description: 'Class ID' })
-  @IsOptional()
-  @IsUUID()
-  classId?: string;
-
-  @ApiPropertyOptional({ description: 'Order ID' })
-  @IsOptional()
-  @IsUUID()
-  orderId?: string;
-
-  @ApiPropertyOptional({ description: 'Family ID' })
-  @IsOptional()
-  @IsUUID()
-  familyId?: string;
-
-  @ApiPropertyOptional({ description: 'Genus ID' })
-  @IsOptional()
-  @IsUUID()
-  genusId?: string;
-
+  // Taxonomic classification: the specimen only links to the species;
+  // genus, family, order, class and division come from the species hierarchy
   @ApiPropertyOptional({ description: 'Species ID' })
   @IsOptional()
   @IsUUID()

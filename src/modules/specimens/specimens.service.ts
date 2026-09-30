@@ -8,6 +8,7 @@ import { publicUserSelect } from '../../common/prisma/user-select';
 import { ImagesService } from '../images/images.service';
 import { CreateSpecimenDto } from './dto/create-specimen.dto';
 import { SearchSpecimenDto } from './dto/search-specimen.dto';
+import { UpdateSpecimenDto } from './dto/update-specimen.dto';
 import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
@@ -96,7 +97,10 @@ export class SpecimensService {
     return `HUAZ-${String(updated.lastNumber).padStart(6, '0')}`;
   }
 
-  async create(dto: CreateSpecimenDto) {
+  /**
+   * @param userId usuario que crea la muestra (queda como createdBy y updatedBy)
+   */
+  async create(dto: CreateSpecimenDto, userId?: string) {
     const { collectorIds, collectionDate, latitude, longitude, ...data } = dto;
 
     // Generate catalog number if not provided
@@ -112,6 +116,8 @@ export class SpecimensService {
           latitude: latitude !== undefined ? new Decimal(latitude) : null,
           longitude: longitude !== undefined ? new Decimal(longitude) : null,
           isActive: dto.isActive ?? true,
+          createdById: userId ?? null,
+          updatedById: userId ?? null,
         },
         include: this.includeRelations,
       });
@@ -271,7 +277,10 @@ export class SpecimensService {
     return specimen;
   }
 
-  async update(id: string, dto: Partial<CreateSpecimenDto>) {
+  /**
+   * @param userId usuario que edita (queda como updatedBy)
+   */
+  async update(id: string, dto: UpdateSpecimenDto, userId?: string) {
     await this.findOne(id);
 
     const { collectorIds, collectionDate, latitude, longitude, ...data } = dto;
@@ -283,6 +292,7 @@ export class SpecimensService {
         collectionDate: collectionDate ? new Date(collectionDate) : undefined,
         latitude: latitude !== undefined ? new Decimal(latitude) : undefined,
         longitude: longitude !== undefined ? new Decimal(longitude) : undefined,
+        ...(userId && { updatedById: userId }),
       },
       include: this.includeRelations,
     });
@@ -340,12 +350,12 @@ export class SpecimensService {
     });
   }
 
-  async updateImage(id: string, imageId: string) {
+  async updateImage(id: string, imageId: string, userId?: string) {
     await this.findOne(id);
 
     return this.prisma.specimen.update({
       where: { id },
-      data: { imageId },
+      data: { imageId, ...(userId && { updatedById: userId }) },
       include: this.includeRelations,
     });
   }
@@ -367,7 +377,10 @@ export class SpecimensService {
     return specimen.collectors.map((c) => c.user);
   }
 
-  async addCollector(specimenId: string, userId: string) {
+  /**
+   * @param editorId usuario que hace el cambio (queda como updatedBy de la muestra)
+   */
+  async addCollector(specimenId: string, userId: string, editorId?: string) {
     await this.findOne(specimenId);
 
     // Check if collector already exists
@@ -384,11 +397,12 @@ export class SpecimensService {
     await this.prisma.specimenCollector.create({
       data: { specimenId, userId },
     });
+    await this.touchUpdatedBy(specimenId, editorId);
 
     return this.findOne(specimenId);
   }
 
-  async removeCollector(specimenId: string, userId: string) {
+  async removeCollector(specimenId: string, userId: string, editorId?: string) {
     await this.findOne(specimenId);
 
     await this.prisma.specimenCollector.delete({
@@ -396,8 +410,18 @@ export class SpecimensService {
         specimenId_userId: { specimenId, userId },
       },
     });
+    await this.touchUpdatedBy(specimenId, editorId);
 
     return this.findOne(specimenId);
+  }
+
+  /** Registra quién hizo el último cambio en la muestra */
+  private async touchUpdatedBy(specimenId: string, userId?: string) {
+    if (!userId) return;
+    await this.prisma.specimen.update({
+      where: { id: specimenId },
+      data: { updatedById: userId },
+    });
   }
 
   // ============ REFERENCE DATA ============
@@ -448,7 +472,7 @@ export class SpecimensService {
   /**
    * Associate an image with a specimen as primary image
    */
-  async updateSpecimenImage(specimenId: string, imageId: string) {
+  async updateSpecimenImage(specimenId: string, imageId: string, userId?: string) {
     // Verify specimen exists
     const specimen = await this.prisma.specimen.findUnique({
       where: { id: specimenId },
@@ -470,7 +494,7 @@ export class SpecimensService {
     // Update specimen with the image
     return this.prisma.specimen.update({
       where: { id: specimenId },
-      data: { imageId },
+      data: { imageId, ...(userId && { updatedById: userId }) },
       include: this.includeRelations,
     });
   }

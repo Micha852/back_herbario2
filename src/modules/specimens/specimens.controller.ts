@@ -20,6 +20,7 @@ import {
 import { SpecimensService } from './specimens.service';
 import { CreateSpecimenDto } from './dto/create-specimen.dto';
 import { SearchSpecimenDto } from './dto/search-specimen.dto';
+import { UpdateSpecimenDto } from './dto/update-specimen.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -64,8 +65,8 @@ export class SpecimensController {
     status: HttpStatus.FORBIDDEN,
     description: 'Insufficient permissions',
   })
-  create(@Body() dto: CreateSpecimenDto) {
-    return this.specimensService.create(dto);
+  create(@Body() dto: CreateSpecimenDto, @CurrentUser() user: UserEntity) {
+    return this.specimensService.create(dto, user.id);
   }
 
   @Public()
@@ -251,8 +252,12 @@ export class SpecimensController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Not authenticated',
   })
-  update(@Param('id') id: string, @Body() dto: Partial<CreateSpecimenDto>) {
-    return this.specimensService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateSpecimenDto,
+    @CurrentUser() user: UserEntity,
+  ) {
+    return this.specimensService.update(id, dto, user.id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -268,8 +273,12 @@ export class SpecimensController {
     status: HttpStatus.OK,
     description: 'Image updated successfully',
   })
-  updateImage(@Param('id') id: string, @Body('imageId') imageId: string) {
-    return this.specimensService.updateImage(id, imageId);
+  updateImage(
+    @Param('id') id: string,
+    @Body('imageId') imageId: string,
+    @CurrentUser() user: UserEntity,
+  ) {
+    return this.specimensService.updateImage(id, imageId, user.id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -322,8 +331,12 @@ export class SpecimensController {
     status: HttpStatus.OK,
     description: 'Collector added successfully',
   })
-  addCollector(@Param('id') id: string, @Param('userId') userId: string) {
-    return this.specimensService.addCollector(id, userId);
+  addCollector(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @CurrentUser() user: UserEntity,
+  ) {
+    return this.specimensService.addCollector(id, userId, user.id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -340,8 +353,12 @@ export class SpecimensController {
     status: HttpStatus.OK,
     description: 'Collector removed successfully',
   })
-  removeCollector(@Param('id') id: string, @Param('userId') userId: string) {
-    return this.specimensService.removeCollector(id, userId);
+  removeCollector(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @CurrentUser() user: UserEntity,
+  ) {
+    return this.specimensService.removeCollector(id, userId, user.id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -364,7 +381,8 @@ export class SpecimensController {
   updateSpecimenImage(
     @Param('id') id: string,
     @Body('imageId') imageId: string,
+    @CurrentUser() user: UserEntity,
   ) {
-    return this.specimensService.updateSpecimenImage(id, imageId);
+    return this.specimensService.updateSpecimenImage(id, imageId, user.id);
   }
 }
