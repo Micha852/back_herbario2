@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { publicUserSelect } from '../../common/prisma/user-select';
 import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class ReportsService {
   async getSpecimensByCollector(collectorId: string) {
     const collector = await this.prisma.user.findUnique({
       where: { id: collectorId },
+      select: { ...publicUserSelect, email: true, isCollector: true },
     });
 
     const specimens = await this.prisma.specimen.findMany({
@@ -98,7 +100,7 @@ export class ReportsService {
             municipality: { include: { department: true } },
           },
         },
-        collectors: { include: { user: true } },
+        collectors: { include: { user: { select: publicUserSelect } } },
       },
     });
 

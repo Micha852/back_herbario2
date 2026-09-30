@@ -1,8 +1,25 @@
-import { IsOptional, IsString, IsUUID, IsInt, Min, Max, IsBoolean } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsUUID,
+  IsInt,
+  Min,
+  Max,
+  IsBoolean,
+  IsDateString,
+  IsIn,
+} from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SearchSpecimenDto {
+  @ApiPropertyOptional({
+    description: 'General search: scientific/common name, catalog number, species, genus or family',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
   @ApiPropertyOptional({ description: 'Search by scientific name' })
   @IsOptional()
   @IsString()
@@ -52,6 +69,35 @@ export class SearchSpecimenDto {
   @IsOptional()
   @IsUUID()
   projectId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by department ID' })
+  @IsOptional()
+  @IsUUID()
+  departmentId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by municipality ID' })
+  @IsOptional()
+  @IsUUID()
+  municipalityId?: string;
+
+  @ApiPropertyOptional({ description: 'Collection date from (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ description: 'Collection date to, inclusive (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Sort order',
+    enum: ['recent', 'name', 'collectionDate'],
+    default: 'recent',
+  })
+  @IsOptional()
+  @IsIn(['recent', 'name', 'collectionDate'])
+  sort?: 'recent' | 'name' | 'collectionDate' = 'recent';
 
   @ApiPropertyOptional({ description: 'Filter by location ID' })
   @IsOptional()

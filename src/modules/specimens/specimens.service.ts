@@ -4,9 +4,11 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { publicUserSelect } from '../../common/prisma/user-select';
 import { ImagesService } from '../images/images.service';
 import { CreateSpecimenDto } from './dto/create-specimen.dto';
 import { SearchSpecimenDto } from './dto/search-specimen.dto';
+import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
@@ -55,18 +57,18 @@ export class SpecimensService {
     originType: true,
     habitat: true,
     collectors: {
-      include: { user: true },
+      include: { user: { select: publicUserSelect } },
     },
     comments: {
-      include: { user: true },
+      include: { user: { select: publicUserSelect } },
       orderBy: { createdAt: 'desc' as const },
     },
     images: {
       where: { isActive: true },
       orderBy: [{ isPrimary: 'desc' as const }, { sortOrder: 'asc' as const }],
     },
-    createdBy: true,
-    updatedBy: true,
+    createdBy: { select: publicUserSelect },
+    updatedBy: { select: publicUserSelect },
   };
 
   /**
@@ -139,6 +141,7 @@ export class SpecimensService {
     const {
       page = 1,
       limit = 20,
+      search,
       scientificName,
       commonName,
       catalogNumber,
@@ -148,61 +151,95 @@ export class SpecimensService {
       genusId,
       speciesId,
       divisionId,
-      projectId,
+      departmentId,
+      municipalityId,
       locationId,
+      projectId,
       collectorId,
+      startDate,
+      endDate,
       isActive,
+      sort = 'recent',
     } = searchDto;
 
-    const where: any = {};
+    const and: Prisma.SpecimenWhereInput[] = [];
 
-    if (isActive !== undefined) {
-      where.isActive = isActive;
+    if (isActive !== undefined) and.push({ isActive });
+
+    // Búsqueda general: nombres, catálogo y taxonomía
+    if (search) {
+      const contains = { contains: search, mode: 'insensitive' as const };
+      and.push({
+        OR: [
+          { scientificName: contains },
+          { commonName: contains },
+          { catalogNumber: contains },
+          { species: { epithet: contains } },
+          { species: { genus: { name: contains } } },
+          { species: { genus: { family: { name: contains } } } },
+        ],
+      });
     }
 
     if (scientificName) {
-      where.scientificName = {
-        contains: scientificName,
-        mode: 'insensitive',
-      };
+      and.push({ scientificName: { contains: scientificName, mode: 'insensitive' } });
     }
-
     if (commonName) {
-      where.commonName = {
-        contains: commonName,
-        mode: 'insensitive',
-      };
+      and.push({ commonName: { contains: commonName, mode: 'insensitive' } });
     }
-
     if (catalogNumber) {
-      where.catalogNumber = {
-        contains: catalogNumber,
-        mode: 'insensitive',
-      };
+      and.push({ catalogNumber: { contains: catalogNumber, mode: 'insensitive' } });
     }
 
-    if (classId) where.classId = classId;
-    if (orderId) where.orderId = orderId;
-    if (familyId) where.familyId = familyId;
-    if (genusId) where.genusId = genusId;
-    if (speciesId) where.speciesId = speciesId;
-    if (divisionId) where.divisionId = divisionId;
-    if (projectId) where.projectId = projectId;
-    if (locationId) where.locationId = locationId;
-
-    if (collectorId) {
-      where.collectors = {
-        some: { userId: collectorId },
-      };
+    // Taxonomía: la muestra solo se liga a la especie; el resto se filtra por la jerarquía
+    if (speciesId) and.push({ speciesId });
+    if (genusId) and.push({ species: { genusId } });
+    if (familyId) and.push({ species: { genus: { familyId } } });
+    if (orderId) and.push({ species: { genus: { family: { orderId } } } });
+    if (classId) and.push({ species: { genus: { family: { order: { classId } } } } });
+    if (divisionId) {
+      and.push({ species: { genus: { family: { order: { class: { divisionId } } } } } });
     }
+
+    // Ubicación: Departamento → Municipio → Ubicación
+    if (locationId) and.push({ locationId });
+    if (municipalityId) and.push({ location: { municipalityId } });
+    if (departmentId) and.push({ location: { municipality: { departmentId } } });
+
+    if (projectId) and.push({ projectId });
+    if (collectorId) and.push({ collectors: { some: { userId: collectorId } } });
+
+    // Rango de fechas de colecta (endDate incluye todo el día)
+    if (startDate || endDate) {
+      const collectionDate: Prisma.DateTimeNullableFilter = {};
+      if (startDate) collectionDate.gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setUTCHours(23, 59, 59, 999);
+        collectionDate.lte = end;
+      }
+      and.push({ collectionDate });
+    }
+
+    const where: Prisma.SpecimenWhereInput = and.length ? { AND: and } : {};
+
+    const orderBy: Prisma.SpecimenOrderByWithRelationInput[] =
+      sort === 'name'
+        ? [{ scientificName: 'asc' }]
+        : sort === 'collectionDate'
+          ? [{ collectionDate: { sort: 'desc', nulls: 'last' } }]
+          : [{ createdAt: 'desc' }];
+
+    // El listado no necesita comentarios; la ficha (findOne) sí los trae
+    const { comments: _comments, ...listInclude } = this.includeRelations;
 
     const [specimens, total] = await Promise.all([
       this.prisma.specimen.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: this.includeRelations,
+        orderBy,
+        include: listInclude,
       }),
       this.prisma.specimen.count({ where }),
     ]);
@@ -218,13 +255,16 @@ export class SpecimensService {
     };
   }
 
-  async findOne(id: string) {
+  /**
+   * @param includeInactive false para consultas públicas: una muestra inactiva responde 404
+   */
+  async findOne(id: string, includeInactive = true) {
     const specimen = await this.prisma.specimen.findUnique({
       where: { id },
       include: this.includeRelations,
     });
 
-    if (!specimen) {
+    if (!specimen || (!includeInactive && !specimen.isActive)) {
       throw new NotFoundException(`Specimen with ID ${id} not found`);
     }
 
@@ -315,7 +355,7 @@ export class SpecimensService {
       where: { id },
       include: {
         collectors: {
-          include: { user: true },
+          include: { user: { select: publicUserSelect } },
         },
       },
     });

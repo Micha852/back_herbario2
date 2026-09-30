@@ -3,6 +3,17 @@ import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class TransformImageDto {
+  // Se lee con @Query('version') en el controller; declararlo aquí evita que
+  // forbidNonWhitelisted rechace ?version=... (antes respondía 400)
+  @ApiPropertyOptional({
+    description: 'Pre-generated image version',
+    enum: ['original', 'thumbnail', 'medium', 'large'],
+    default: 'original',
+  })
+  @IsOptional()
+  @IsIn(['original', 'thumbnail', 'medium', 'large'])
+  version?: 'original' | 'thumbnail' | 'medium' | 'large';
+
   @ApiPropertyOptional({
     description: 'Width in pixels',
     minimum: 1,

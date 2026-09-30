@@ -25,6 +25,15 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { UserRole } from '../users/enums/user-role.enum';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { UserEntity } from '../users/entities/user.entity';
+
+/** ADMIN y COLABORADOR ven muestras inactivas; el público solo las activas */
+function canSeeInactive(user: UserEntity | null): boolean {
+  const role = user?.role?.name;
+  return role === UserRole.ADMIN || role === UserRole.COLLABORATOR;
+}
 
 @ApiTags('Specimens')
 @Controller('specimens')
@@ -60,16 +69,24 @@ export class SpecimensController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get()
   @ApiOperation({
     summary: 'Search specimens',
-    description: 'Search specimens with filters (taxonomy, location, project, collector) and pagination. Public endpoint.',
+    description:
+      'Search specimens with filters (text, taxonomy, location, dates, project, collector) and pagination. Public endpoint: anonymous users and visitors only get active specimens.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Specimens retrieved successfully with pagination metadata',
   })
-  findAll(@Query() searchDto: SearchSpecimenDto) {
+  findAll(
+    @Query() searchDto: SearchSpecimenDto,
+    @CurrentUser() user: UserEntity | null,
+  ) {
+    if (!canSeeInactive(user)) {
+      searchDto.isActive = true;
+    }
     return this.specimensService.findAll(searchDto);
   }
 
@@ -194,6 +211,7 @@ export class SpecimensController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':id')
   @ApiOperation({
     summary: 'Get specimen by ID',
@@ -208,8 +226,8 @@ export class SpecimensController {
     status: HttpStatus.NOT_FOUND,
     description: 'Specimen not found',
   })
-  findOne(@Param('id') id: string) {
-    return this.specimensService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: UserEntity | null) {
+    return this.specimensService.findOne(id, canSeeInactive(user));
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

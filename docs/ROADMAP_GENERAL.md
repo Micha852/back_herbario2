@@ -50,20 +50,20 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 
 | Funcionalidad | Ref. | Back | Front | Notas |
 |---|---|---|---|---|
-| Búsqueda simple (nombre científico / vulgar) | CU-023…025, RF-003 | ✅ | ⚠️ | Front usa `lib/data/mock-specimens.ts` |
-| Búsqueda avanzada (taxonomía + ubicación) | CU-015…022, RF-003 | ⚠️ | ⚠️ | Back: filtros `divisionId/classId/orderId/familyId/genusId` rompen la consulta; no hay filtro por departamento/municipio/fechas. Front: selects con mocks |
-| Resultados en tarjetas (galería) con paginación | CU-015 | ✅ | ⚠️ | Front filtra mocks en cliente, sin paginación |
-| Ficha técnica de la muestra | CU-027 | ✅ | ⚠️ | Front lee mocks; el botón "ver" del panel lleva a "no encontrada" |
-| Galería de imágenes en la ficha (carrusel + zoom) | D3 | ✅ | ⚠️ | UI existe pero sobre mocks |
+| Búsqueda simple (nombre científico / vulgar) | CU-023…025, RF-003 | ✅ | ✅ | Más búsqueda general `search` (nombres, catálogo, género, familia) en la galería |
+| Búsqueda avanzada (taxonomía + ubicación) | CU-015…022, RF-003 | ✅ | ✅ | Filtros anidados por la jerarquía, departamento/municipio y rango de fechas; selects en cascada con catálogos reales |
+| Resultados en tarjetas (galería) con paginación | CU-015 | ✅ | ✅ | Filtros en la URL, chips removibles, orden (recientes / nombre / fecha de colecta) |
+| Ficha técnica de la muestra | CU-027 | ✅ | ✅ | Taxonomía, ubicación, características, observaciones, recolectores, proyecto |
+| Galería de imágenes en la ficha (carrusel + zoom) | D3 | ✅ | ✅ | Miniaturas + visor a pantalla completa. Usa `imageId` heredado si la muestra no tiene `SpecimenImage` |
 | Mapa de ubicación (Leaflet) | RF-004 | ✅ (coordenadas) | ❌ | Falta instalar `react-leaflet` |
 | Ficha técnica en PDF | HDUA | ❌ | ❌ | En HDUA 1.0 solo ADMIN |
-| Muestras inactivas visibles solo para ADMIN | HDUA | ✅ (`isActive`) | ❌ | |
+| Muestras inactivas visibles solo para ADMIN/COLABORADOR | HDUA | ✅ | ✅ | `OptionalJwtAuthGuard`: el público solo recibe activas; una inactiva responde 404 |
 
 ### 3.2 Comentarios
 
 | Funcionalidad | Ref. | Back | Front | Notas |
 |---|---|---|---|---|
-| Listar comentarios de una muestra | CU-027, RF-005 | ✅ | ❌ | Solo tipos en `lib/types/comment.ts` |
+| Listar comentarios de una muestra | CU-027, RF-005 | ✅ | ✅ | Solo lectura en la ficha |
 | Publicar (requiere login) | CU-028, RF-010 | ✅ | ❌ | |
 | Editar propio / eliminar (autor o ADMIN) | HDUA | ✅ | ❌ | El back sí valida propiedad |
 
@@ -129,6 +129,8 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 ## 4. Bugs y deuda técnica conocidos
 
 ### Seguridad (prioridad alta)
+- [x] 🚨 `GET /specimens`, comentarios y reportes exponían el hash de contraseña de usuarios (`include: { user: true }`). Ahora usan `publicUserSelect` (`src/common/prisma/user-select.ts`).
+- [x] `GET /auth/profile` devolvía el hash de contraseña (interceptor `ClassSerializerInterceptor` global).
 - [ ] `PUT /api/v1/system-info/:key` público → proteger con JWT + `ADMINISTRADOR`.
 - [ ] `images` (`upload`, `PATCH`, `DELETE`, `primary`): cualquier usuario logueado puede modificar imágenes → restringir a ADMIN/COLABORADOR.
 - [ ] Secretos JWT por defecto en código (`'your-super-secret-jwt-key'`, `'refresh-secret'`) → fallar si no están en `.env`.
@@ -137,8 +139,9 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 - [ ] Front: guardas solo en cliente; `/panel/cms` sin chequeo de rol ADMIN.
 
 ### Back
-- [ ] Filtros taxonómicos de `GET /specimens` (anidar por `species.genus.family…`).
-- [ ] Añadir filtros `departmentId`, `municipalityId`, `startDate`, `endDate` (el front ya los envía).
+- [x] `GET /images/:id?version=...` respondía 400 (`version` no estaba en `TransformImageDto`).
+- [x] Filtros taxonómicos de `GET /specimens` (anidar por `species.genus.family…`).
+- [x] Añadir filtros `departmentId`, `municipalityId`, `startDate`, `endDate`, `search` y `sort`.
 - [ ] Taxonomía: DTOs con padre + `epithet` en especie.
 - [ ] `PATCH /specimens/:id` con `UpdateSpecimenDto` real (`PartialType`).
 - [ ] `PATCH specimens/:id/image` declarado dos veces.
@@ -174,10 +177,11 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 - [ ] Seed de **muestras de prueba con imágenes** (sin borrar la base, o con flag explícito).
 
 ### Fase B - Consulta pública real ⏳
-- [ ] `/consultas`, `/consultas/avanzada`, `/consultas/resultados`, `/consultas/[id]` consumiendo el API (eliminar `lib/data/mock-*`).
-- [ ] Resultados como galería de tarjetas con imagen principal y paginación.
-- [ ] Ficha: carrusel de imágenes con zoom + mapa Leaflet.
-- [ ] Comentarios en la ficha (listar, publicar, editar propio, eliminar).
+- [x] `/consultas`, `/consultas/avanzada`, `/consultas/resultados`, `/consultas/[id]` consumiendo el API (mocks eliminados).
+- [x] Resultados como galería de tarjetas con imagen principal y paginación.
+- [x] Ficha: carrusel de imágenes con zoom.
+- [ ] Ficha: mapa Leaflet.
+- [ ] Comentarios en la ficha: publicar, editar propio, eliminar (listar ✅).
 
 ### Fase C - Panel completo ⏳
 - [ ] Editar muestra (`/panel/muestras/[id]/editar`), reutilizando el asistente.

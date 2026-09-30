@@ -4,6 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { publicUserSelect } from '../../common/prisma/user-select';
 import { CreateCommentDto } from './dto/create-comment.dto';
 
 @Injectable()
@@ -28,7 +29,7 @@ export class CommentsService {
         specimenId: dto.specimenId,
         userId,
       },
-      include: { user: true, specimen: true },
+      include: { user: { select: publicUserSelect }, specimen: true },
     });
   }
 
@@ -36,14 +37,14 @@ export class CommentsService {
     return this.prisma.comment.findMany({
       where: { specimenId },
       orderBy: { createdAt: 'desc' },
-      include: { user: true },
+      include: { user: { select: publicUserSelect } },
     });
   }
 
   async findOne(id: string) {
     const comment = await this.prisma.comment.findUnique({
       where: { id },
-      include: { user: true, specimen: true },
+      include: { user: { select: publicUserSelect }, specimen: true },
     });
 
     if (!comment) {
@@ -64,7 +65,7 @@ export class CommentsService {
     return this.prisma.comment.update({
       where: { id },
       data: { text },
-      include: { user: true },
+      include: { user: { select: publicUserSelect } },
     });
   }
 
