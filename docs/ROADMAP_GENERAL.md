@@ -55,7 +55,7 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 | Resultados en tarjetas (galería) con paginación | CU-015 | ✅ | ✅ | Filtros en la URL, chips removibles, orden (recientes / nombre / fecha de colecta) |
 | Ficha técnica de la muestra | CU-027 | ✅ | ✅ | Taxonomía, ubicación, características, observaciones, recolectores, proyecto |
 | Galería de imágenes en la ficha (carrusel + zoom) | D3 | ✅ | ✅ | Miniaturas + visor a pantalla completa. Usa `imageId` heredado si la muestra no tiene `SpecimenImage` |
-| Mapa de ubicación (Leaflet) | RF-004 | ✅ (coordenadas) | ❌ | Falta instalar `react-leaflet` |
+| Mapa de ubicación (Leaflet) | RF-004 | ✅ | ✅ | Capas mapa/satélite; si la muestra no tiene coordenadas usa las de la localidad (aproximada) |
 | Ficha técnica en PDF | HDUA | ❌ | ❌ | En HDUA 1.0 solo ADMIN |
 | Muestras inactivas visibles solo para ADMIN/COLABORADOR | HDUA | ✅ | ✅ | `OptionalJwtAuthGuard`: el público solo recibe activas; una inactiva responde 404 |
 
@@ -63,9 +63,9 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 
 | Funcionalidad | Ref. | Back | Front | Notas |
 |---|---|---|---|---|
-| Listar comentarios de una muestra | CU-027, RF-005 | ✅ | ✅ | Solo lectura en la ficha |
-| Publicar (requiere login) | CU-028, RF-010 | ✅ | ❌ | |
-| Editar propio / eliminar (autor o ADMIN) | HDUA | ✅ | ❌ | El back sí valida propiedad |
+| Listar comentarios de una muestra | CU-027, RF-005 | ✅ | ✅ | Muestras inactivas: solo el equipo |
+| Publicar (requiere login) | CU-028, RF-010 | ✅ | ✅ | Sin sesión: enlace a login que vuelve a la ficha |
+| Editar propio / eliminar (autor o ADMIN) | HDUA | ✅ | ✅ | Solo el autor edita; ADMIN elimina cualquiera (moderación) |
 
 ### 3.3 Cuentas y perfil
 
@@ -180,8 +180,8 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 - [x] `/consultas`, `/consultas/avanzada`, `/consultas/resultados`, `/consultas/[id]` consumiendo el API (mocks eliminados).
 - [x] Resultados como galería de tarjetas con imagen principal y paginación.
 - [x] Ficha: carrusel de imágenes con zoom.
-- [ ] Ficha: mapa Leaflet.
-- [ ] Comentarios en la ficha: publicar, editar propio, eliminar (listar ✅).
+- [x] Ficha: mapa Leaflet.
+- [x] Comentarios en la ficha: publicar, editar propio, eliminar.
 
 ### Fase C - Panel completo ⏳
 - [x] Editar muestra (`/panel/muestras/[id]/editar`), reutilizando el asistente (`components/panel/specimen-form/specimen-form.tsx`).

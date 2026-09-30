@@ -9,6 +9,7 @@ import {
   Query,
   HttpStatus,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -27,6 +28,11 @@ import { Public } from '../auth/decorators/public.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserEntity } from '../users/entities/user.entity';
 import { UserRole } from '../users/enums/user-role.enum';
+import { UpdateCommentDto } from './dto/update-comment.dto';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
+
+const isStaff = (user: UserEntity | null) =>
+  user?.role?.name === UserRole.ADMIN || user?.role?.name === UserRole.COLLABORATOR;
 
 @ApiTags('Comments')
 @Controller('comments')
@@ -53,14 +59,15 @@ export class CommentsController {
     description: 'Not authenticated',
   })
   create(@Body() dto: CreateCommentDto, @CurrentUser() user: UserEntity) {
-    return this.commentsService.create(dto, user.id);
+    return this.commentsService.create(dto, user.id, isStaff(user));
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get()
   @ApiOperation({
     summary: 'Get comments by specimen ID',
-    description: 'Returns all comments for a specimen. Public endpoint.',
+    description: 'Returns all comments for a specimen. Public endpoint (inactive specimens only for ADMIN/COLLABORATOR).',
   })
   @ApiQuery({
     name: 'specimenId',
@@ -71,11 +78,15 @@ export class CommentsController {
     status: HttpStatus.OK,
     description: 'Comments retrieved successfully',
   })
-  findBySpecimen(@Query('specimenId') specimenId: string) {
-    return this.commentsService.findBySpecimen(specimenId);
+  findBySpecimen(
+    @Query('specimenId', new ParseUUIDPipe()) specimenId: string,
+    @CurrentUser() user: UserEntity | null,
+  ) {
+    return this.commentsService.findBySpecimen(specimenId, isStaff(user));
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':id')
   @ApiOperation({
     summary: 'Get comment by ID',
@@ -90,8 +101,8 @@ export class CommentsController {
     status: HttpStatus.NOT_FOUND,
     description: 'Comment not found',
   })
-  findOne(@Param('id') id: string) {
-    return this.commentsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: UserEntity | null) {
+    return this.commentsService.findOne(id, isStaff(user));
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -99,7 +110,7 @@ export class CommentsController {
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a comment',
-    description: 'Updates comment text. Owner can update their own comments, ADMIN can update any.',
+    description: 'Updates comment text. Only the author can edit their own comment.',
   })
   @ApiParam({ name: 'id', description: 'Comment UUID' })
   @ApiResponse({
@@ -120,11 +131,10 @@ export class CommentsController {
   })
   update(
     @Param('id') id: string,
-    @Body('text') text: string,
+    @Body() dto: UpdateCommentDto,
     @CurrentUser() user: UserEntity,
   ) {
-    const isAdmin = user.role?.name === UserRole.ADMIN;
-    return this.commentsService.update(id, text, user.id, isAdmin);
+    return this.commentsService.update(id, dto.text, user.id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -132,7 +142,7 @@ export class CommentsController {
   @Delete(':id')
   @ApiOperation({
     summary: 'Delete a comment',
-    description: 'Soft deletes a comment. Owner can delete their own comments, ADMIN can delete any.',
+    description: 'Deletes a comment. The author can delete their own comments; ADMIN can delete any (moderation).',
   })
   @ApiParam({ name: 'id', description: 'Comment UUID' })
   @ApiResponse({
