@@ -35,9 +35,9 @@ Reconstruir el sistema de información del Herbario de la Universidad de la Amaz
 | D4 | Roles: `ADMINISTRADOR`, `COLABORADOR`, `VISITANTE`, igual que en HDUA 1.0. La consulta pública (búsqueda y ficha) **no requiere login**; comentar sí. | En HDUA 1.0 todo exigía login; abrirlo mejora la difusión. |
 | D5 | El contenido institucional (historia, datos, contacto, términos) se gestiona como CMS en la tabla `SystemInfo`. | Ya implementado. |
 | D6 | Imágenes en **disco local** (`uploads/`) con versiones thumbnail/medium/large generadas por sharp. | Suficiente para el alcance actual. |
+| D7 | **Eliminar muestra = borrado real** (filas, recolectores, comentarios e imágenes en disco). | Decidido en el commit `d9a581f`. |
 
 ### Decisiones pendientes
-- **Eliminar muestra:** hoy el back hace *hard delete* (borra filas e imágenes). En HDUA 1.0 solo se desactivaba. Propuesta: **desactivar** por defecto (COLABORADOR/ADMIN) y *hard delete* solo ADMIN.
 - **Módulo `info` duplicado** en el back (mismo `SystemInfo` que `system-info`): propuesta, eliminarlo.
 
 ---
@@ -74,9 +74,9 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 | Login | CU-001/002 | ✅ | ✅ | |
 | Registro | CU-012/013, RF-007 | ✅ | ✅ | Tras registrarse redirige a `/panel` y rebota a visitantes |
 | Recuperar contraseña | CU-014, RF-009 | ✅ | ✅ | Envía contraseña temporal por correo (igual que HDUA). Existe `sendPasswordRecovery` con enlace sin usar |
-| Ver / editar perfil, cambiar contraseña | CU-033/034, RF-011 | ✅ | ✅ | |
-| Desactivar mi cuenta | CU-035, RF-011 | ✅ | ✅ | |
-| Refresh de token automático | — | ✅ | ❌ | `refreshToken()` nunca se llama |
+| Ver / editar perfil, cambiar contraseña | CU-033/034, RF-011 | ✅ | ✅ | Autogestión vía `PATCH /auth/profile` (corregido 2026-09-30: antes usaba `PATCH /users/:id`, solo ADMIN) |
+| Desactivar mi cuenta | CU-035, RF-011 | ✅ | ✅ | `DELETE /auth/profile`; un ADMIN no puede desactivarse a sí mismo |
+| Refresh de token automático | — | ✅ | ✅ | `apiFetch` renueva ante 401 y reintenta; la sesión se valida al cargar la app |
 
 ### 3.4 Panel: gestión de muestras
 
@@ -88,7 +88,7 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 | Subir varias imágenes al crear | D3 | ✅ | ⚠️ | El front no envía `specimenId`/`imageType`; solo asocia la primera; los pies de foto no se guardan |
 | Editar muestra | CU-005 | ⚠️ | ❌ | Back: `PATCH` sin validación de DTO. Front: `/panel/muestras/[id]/editar` no existe (404) |
 | Gestionar imágenes de una muestra (agregar, quitar, marcar principal) | D3 | ✅ | ❌ | |
-| Eliminar / desactivar | CU-006 | ⚠️ | ✅ | Ver decisión pendiente |
+| Eliminar / desactivar | CU-006 | ⚠️ | ✅ | *Hard delete* (decisión tomada, commit `d9a581f`) |
 | Asignar / quitar recolectores | HDUA | ✅ | ✅ | Front los asigna dos veces al crear |
 
 ### 3.5 Panel: catálogos y parámetros
@@ -145,13 +145,13 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 - [ ] Contador de catálogo no atómico.
 - [ ] Imágenes WebP guardadas con extensión original.
 - [ ] Puerto: `.env.example` dice 3000 y el front espera 4000 (`.env` local ya usa 4000).
-- [ ] Variables de entorno: el código y `.env.example` no coinciden (`JWT_EXPIRATION` vs `JWT_EXPIRES_IN`, `MAIL_*` vs `SMTP_*`, faltan `JWT_REFRESH_*`, `CORS_ORIGIN`, `APP_URL`, `HERBARIO_EMAIL`).
+- [ ] Variables de entorno: el código y `.env.example` no coinciden (✅ `JWT_EXPIRES_IN` ya se lee; pendientes `MAIL_*` vs `SMTP_*`, faltan `JWT_REFRESH_*`, `CORS_ORIGIN`, `APP_URL`, `HERBARIO_EMAIL`).
 - [ ] El banner de arranque anuncia `/api/health`, que no existe.
 - [ ] Seed de migración `20260125025500_seed_initial_data` con admin `admin@udla.edu.co` distinto a `seed.ts`; hash probablemente inválido.
 - [ ] ⚠️ `prisma/seed.ts` **borra toda la base** antes de sembrar.
 
 ### Front
-- [ ] 401 redirige a `/auth/login?session=expired` (ruta inexistente → `/login`).
+- [x] 401 redirige a `/auth/login?session=expired` (ruta inexistente → `/login`).
 - [ ] Solo `specimens.service` usa `apiFetch`; unificar el resto de servicios.
 - [ ] Servicios sin uso: `catalogs.service.ts`, `cms.service.ts`. Página duplicada `/contactos`.
 - [ ] `console.log` de depuración en crear muestra y `specimens.service`.
@@ -193,7 +193,8 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 
 ### Fase E - Calidad y despliegue ⏳
 - [ ] Tests: unitarios de servicios críticos (specimens, auth) y e2e de los flujos principales.
-- [ ] Refresh de token automático y middleware de rutas en el front.
+- [x] Refresh de token automático.
+- [ ] Middleware de rutas en el front.
 - [ ] Buzón de sugerencias en el front.
 - [ ] Limpieza (mocks, servicios duplicados, logs, módulo `info`).
 - [ ] Docker Compose (Postgres + back + front) y health check.

@@ -176,6 +176,50 @@ export class UsersService {
   }
 
   /**
+   * Update own profile (self-service: no role/state changes)
+   */
+  async updateProfile(
+    id: string,
+    data: {
+      name?: string;
+      email?: string;
+      genderId?: string;
+      typeId?: string;
+      institutionId?: string;
+    },
+  ): Promise<UserEntity> {
+    await this.findOne(id);
+
+    if (data.email) {
+      const existing = await this.prisma.user.findUnique({
+        where: { email: data.email },
+      });
+      if (existing && existing.id !== id) {
+        throw new ConflictException('Email already exists');
+      }
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: {
+        ...(data.name && { name: data.name }),
+        ...(data.email && { email: data.email }),
+        ...(data.genderId && { genderId: data.genderId }),
+        ...(data.typeId && { typeId: data.typeId }),
+        ...(data.institutionId && { institutionId: data.institutionId }),
+      },
+      include: {
+        role: true,
+        gender: true,
+        type: true,
+        institution: true,
+      },
+    });
+
+    return new UserEntity(user);
+  }
+
+  /**
    * Soft delete user (deactivate)
    */
   async remove(id: string): Promise<void> {

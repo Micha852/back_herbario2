@@ -5,6 +5,10 @@ import {
   UseGuards,
   HttpStatus,
   Get,
+  Patch,
+  Delete,
+  HttpCode,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,11 +25,17 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { UserEntity } from '../users/entities/user.entity';
+import { UsersService } from '../users/users.service';
+import { UserRole } from '../users/enums/user-role.enum';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Public()
   @Post('register')
@@ -109,6 +119,40 @@ export class AuthController {
   })
   getProfile(@CurrentUser() user: UserEntity): UserEntity {
     return user;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Patch('profile')
+  @ApiOperation({
+    summary: 'Update own profile',
+    description:
+      'Lets the authenticated user update their name, email, gender, type and institution',
+  })
+  @ApiResponse({ status: HttpStatus.OK, type: UserEntity })
+  @ApiResponse({ status: HttpStatus.CONFLICT, description: 'Email already exists' })
+  updateProfile(
+    @CurrentUser() user: UserEntity,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ): Promise<UserEntity> {
+    return this.usersService.updateProfile(user.id, updateProfileDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Delete('profile')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Deactivate own account',
+    description: 'Soft-deletes the authenticated user. Administrators cannot deactivate themselves.',
+  })
+  @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Account deactivated' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Administrators cannot deactivate themselves' })
+  async deactivateProfile(@CurrentUser() user: UserEntity): Promise<void> {
+    if (user.role?.name === UserRole.ADMIN) {
+      throw new ForbiddenException('Administrators cannot deactivate themselves');
+    }
+    await this.usersService.remove(user.id);
   }
 
   @Public()

@@ -23,7 +23,10 @@ import { RolesGuard } from './guards/roles.guard';
           configService.get<string>('JWT_SECRET') ||
           'your-super-secret-jwt-key',
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRATION') || '1h',
+          expiresIn:
+            configService.get<string>('JWT_EXPIRES_IN') ||
+            configService.get<string>('JWT_EXPIRATION') ||
+            '1h',
         },
       }),
       inject: [ConfigService],

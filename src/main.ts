@@ -1,5 +1,9 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { NestFactory, Reflector } from '@nestjs/core';
+import {
+  ClassSerializerInterceptor,
+  ValidationPipe,
+  VersioningType,
+} from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
@@ -40,6 +44,9 @@ async function bootstrap() {
       },
     }),
   );
+
+  // Apply @Exclude() on entities (e.g. never return UserEntity.password)
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   // Increase payload size limit for image uploads
   app.use(express.json({ limit: '10mb' }));
