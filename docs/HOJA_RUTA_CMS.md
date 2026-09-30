@@ -1,3 +1,9 @@
+> ⚠️ **Documento histórico (actualizado 2026-09-30).** El estado vigente está en [ROADMAP_GENERAL.md](./ROADMAP_GENERAL.md).
+> Todo lo marcado como pendiente de backend (módulo SystemInfo, guards JWT/Roles, `@Roles`, Swagger) y de frontend (páginas dinámicas, panel CMS) **ya está implementado**.
+> Siguen pendientes: tests, historial de cambios y **proteger `PUT /api/v1/system-info/:key`**, que hoy es público. Las rutas reales son `/api/v1/...`, no `/api/...`.
+
+---
+
 # Hoja de Ruta: Sistema CMS (SystemInfo)
 
 ## 📋 Descripción

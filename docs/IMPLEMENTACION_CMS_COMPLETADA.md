@@ -1,3 +1,11 @@
+> ⚠️ **Correcciones (2026-09-30).** El estado vigente está en [ROADMAP_GENERAL.md](./ROADMAP_GENERAL.md).
+> - Las rutas reales son `/api/v1/system-info`, no `/api/system-info`.
+> - `PUT /api/v1/system-info/:key` **NO está protegido**: tiene `@Public()` temporal. Pendiente protegerlo con JWT + `ADMINISTRADOR`.
+> - El login ya existe; el front guarda el token vía `auth.service.ts`.
+> - Puerto: el `.env` local usa 4000 (el que espera el front), pero `.env.example` y el default del código usan 3000.
+
+---
+
 # ✅ Implementación CMS - COMPLETADO
 
 ## 📋 Resumen de Implementación
