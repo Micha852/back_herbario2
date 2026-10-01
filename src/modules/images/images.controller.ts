@@ -13,6 +13,7 @@ import {
   Res,
   HttpStatus,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -32,21 +33,39 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { UserEntity } from '../users/entities/user.entity';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../users/enums/user-role.enum';
 import { IMAGE_TYPES, UpdateImageDto } from './dto/update-image.dto';
 import { isUUID } from 'class-validator';
 import { SkipThrottle } from '@nestjs/throttler';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequirePermissions } from '../permissions/require-permissions.decorator';
+import { PERMISSIONS } from '../permissions/permissions.constants';
+import { PermissionsService } from '../permissions/permissions.service';
+import { hasPermission } from '../permissions/permissions.logic';
 
 @ApiTags('Images')
 @Controller('images')
 export class ImagesController {
-  constructor(private readonly imagesService: ImagesService) {}
+  constructor(
+    private readonly imagesService: ImagesService,
+    private readonly permissionsService: PermissionsService,
+  ) {}
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
+  /**
+   * Las imágenes se editan con los mismos permisos que su muestra.
+   * Imágenes sin muestra asociada: solo con specimens.edit_any.
+   */
+  private async assertCanEditImage(user: UserEntity, imageId: string): Promise<void> {
+    const image = await this.imagesService.getImage(imageId);
+    if (image.specimenId) {
+      await this.permissionsService.assertCanEditSpecimen(user, image.specimenId);
+    } else if (!hasPermission(user.permissions, PERMISSIONS.SPECIMENS_EDIT_ANY)) {
+      throw new ForbiddenException('No tienes permiso para editar esta imagen');
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.SPECIMENS_CREATE, PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
   @ApiBearerAuth()
   @Post('upload')
   @ApiOperation({
@@ -94,6 +113,9 @@ export class ImagesController {
     }
     if (imageType && !(IMAGE_TYPES as readonly string[]).includes(imageType)) {
       throw new BadRequestException(`imageType must be one of: ${IMAGE_TYPES.join(', ')}`);
+    }
+    if (specimenId) {
+      await this.permissionsService.assertCanEditSpecimen(user, specimenId);
     }
     if (caption && caption.length > 255) {
       throw new BadRequestException('caption must be shorter than or equal to 255 characters');
@@ -179,37 +201,44 @@ export class ImagesController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
   @ApiBearerAuth()
   @Patch(':id')
   @ApiOperation({ summary: 'Update image metadata (caption, type, order)' })
   @ApiParam({ name: 'id', description: 'Image UUID' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Image updated' })
-  async updateImage(@Param('id') id: string, @Body() data: UpdateImageDto) {
+  async updateImage(
+    @Param('id') id: string,
+    @Body() data: UpdateImageDto,
+    @CurrentUser() user: UserEntity,
+  ) {
+    await this.assertCanEditImage(user, id);
     return this.imagesService.updateImage(id, data);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
   @ApiBearerAuth()
   @Patch(':id/primary')
   @ApiOperation({ summary: 'Set as primary image of its specimen' })
   @ApiParam({ name: 'id', description: 'Image UUID' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Primary image set' })
-  async setPrimaryImage(@Param('id') id: string) {
+  async setPrimaryImage(@Param('id') id: string, @CurrentUser() user: UserEntity) {
+    await this.assertCanEditImage(user, id);
     await this.imagesService.setPrimaryImage(id);
     return { message: 'Primary image set successfully' };
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
   @ApiBearerAuth()
   @Delete(':id')
   @ApiOperation({ summary: 'Delete image permanently (files + record). To hide it instead, PATCH isActive=false' })
   @ApiParam({ name: 'id', description: 'Image UUID' })
   @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Image deleted' })
-  async deleteImage(@Param('id') id: string): Promise<void> {
+  async deleteImage(@Param('id') id: string, @CurrentUser() user: UserEntity): Promise<void> {
+    await this.assertCanEditImage(user, id);
     await this.imagesService.deleteImage(id);
   }
 
@@ -218,7 +247,7 @@ export class ImagesController {
   @Get('specimen/:specimenId')
   @ApiOperation({
     summary: 'Get all images for a specimen',
-    description: 'Public: only enabled images. ADMIN/COLLABORATOR can pass includeInactive=true to also get disabled ones.',
+    description: 'Public: only enabled images. Users who can edit the specimen can pass includeInactive=true to also get disabled ones.',
   })
   @ApiParam({ name: 'specimenId', description: 'Specimen UUID' })
   @ApiQuery({ name: 'includeInactive', required: false, type: Boolean })
@@ -228,12 +257,14 @@ export class ImagesController {
     @CurrentUser() user: UserEntity | null,
     @Query('includeInactive') includeInactive?: string,
   ) {
-    const role = user?.role?.name;
-    const isStaff = role === UserRole.ADMIN || role === UserRole.COLLABORATOR;
-    const images = await this.imagesService.getImagesBySpecimen(
-      specimenId,
-      isStaff && includeInactive === 'true',
-    );
+    let canSeeDisabled = false;
+    if (user && includeInactive === 'true') {
+      canSeeDisabled = await this.permissionsService
+        .assertCanEditSpecimen(user, specimenId)
+        .then(() => true)
+        .catch(() => false);
+    }
+    const images = await this.imagesService.getImagesBySpecimen(specimenId, canSeeDisabled);
     return images.map((image) => ({
       id: image.id,
       originalName: image.originalName,

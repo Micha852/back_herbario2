@@ -27,12 +27,13 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserEntity } from '../users/entities/user.entity';
-import { UserRole } from '../users/enums/user-role.enum';
+import { PERMISSIONS } from '../permissions/permissions.constants';
+import { hasPermission } from '../permissions/permissions.logic';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 
-const isStaff = (user: UserEntity | null) =>
-  user?.role?.name === UserRole.ADMIN || user?.role?.name === UserRole.COLLABORATOR;
+/** Ve comentarios de muestras inactivas quien puede ver muestras inactivas */
+const isStaff = (user: UserEntity | null) => hasPermission(user?.permissions, PERMISSIONS.SPECIMENS_STATUS);
 
 @ApiTags('Comments')
 @Controller('comments')
@@ -142,7 +143,7 @@ export class CommentsController {
   @Delete(':id')
   @ApiOperation({
     summary: 'Delete a comment',
-    description: 'Deletes a comment. The author can delete their own comments; ADMIN can delete any (moderation).',
+    description: 'Deletes a comment. The author can delete their own comments; users with comments.moderate can delete any.',
   })
   @ApiParam({ name: 'id', description: 'Comment UUID' })
   @ApiResponse({
@@ -162,7 +163,8 @@ export class CommentsController {
     description: 'Not authenticated',
   })
   remove(@Param('id') id: string, @CurrentUser() user: UserEntity) {
-    const isAdmin = user.role?.name === UserRole.ADMIN;
-    return this.commentsService.remove(id, user.id, isAdmin);
+    // Borrar comentarios ajenos = moderación (permiso comments.moderate)
+    const canModerate = hasPermission(user.permissions, PERMISSIONS.COMMENTS_MODERATE);
+    return this.commentsService.remove(id, user.id, canModerate);
   }
 }

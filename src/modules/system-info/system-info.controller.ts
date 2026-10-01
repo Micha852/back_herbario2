@@ -12,10 +12,10 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 import { SystemInfoService } from './system-info.service';
 import { UpdateSystemInfoDto } from './dto/update-system-info.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
-import { UserRole } from '../users/enums/user-role.enum';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequirePermissions } from '../permissions/require-permissions.decorator';
+import { PERMISSIONS } from '../permissions/permissions.constants';
 
 @Controller('system-info')
 export class SystemInfoController {
@@ -47,8 +47,8 @@ export class SystemInfoController {
      * PUT /api/v1/system-info/:key
      * Actualiza el contenido de un registro (solo ADMINISTRADOR)
      */
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.ADMIN)
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @RequirePermissions(PERMISSIONS.CMS_EDIT)
     @ApiBearerAuth()
     @Put(':key')
     @HttpCode(HttpStatus.OK)

@@ -19,10 +19,10 @@ import {
 import { InfoService } from './info.service';
 import { CreateInfoDto, UpdateInfoDto } from './dto/update-info.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
-import { UserRole } from '../users/enums/user-role.enum';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequirePermissions } from '../permissions/require-permissions.decorator';
+import { PERMISSIONS } from '../permissions/permissions.constants';
 
 @ApiTags('System Information')
 @Controller('info')
@@ -65,8 +65,8 @@ export class InfoController {
     return this.infoService.findByKey(key);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CMS_EDIT)
   @ApiBearerAuth()
   @Post()
   @ApiOperation({
@@ -81,8 +81,8 @@ export class InfoController {
     return this.infoService.create(dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CMS_EDIT)
   @ApiBearerAuth()
   @Patch(':key')
   @ApiOperation({
@@ -101,8 +101,8 @@ export class InfoController {
     return this.infoService.update(key, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CMS_EDIT)
   @ApiBearerAuth()
   @Delete(':key')
   @ApiOperation({

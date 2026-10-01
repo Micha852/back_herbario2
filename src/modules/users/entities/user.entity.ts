@@ -63,6 +63,12 @@ export class UserEntity {
     name: string;
   };
 
+  @ApiPropertyOptional({
+    description: 'Permisos efectivos (rol ± ajustes). Se calculan en cada petición autenticada',
+    type: [String],
+  })
+  permissions?: string[];
+
   constructor(partial: Partial<UserEntity>) {
     Object.assign(this, partial);
   }

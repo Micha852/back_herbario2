@@ -23,10 +23,10 @@ import { CreateDepartmentDto } from './dto/create-department.dto';
 import { CreateMunicipalityDto } from './dto/create-municipality.dto';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
-import { UserRole } from '../users/enums/user-role.enum';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequirePermissions } from '../permissions/require-permissions.decorator';
+import { PERMISSIONS } from '../permissions/permissions.constants';
 
 @ApiTags('Locations')
 @Controller('locations')
@@ -48,8 +48,8 @@ export class LocationsController {
     return this.locationsService.findAllDepartments();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('departments')
   @ApiOperation({
@@ -91,8 +91,8 @@ export class LocationsController {
     return this.locationsService.findDepartmentById(id);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Patch('departments/:id')
   @ApiOperation({
@@ -119,8 +119,8 @@ export class LocationsController {
     return this.locationsService.updateDepartment(id, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
   @ApiBearerAuth()
   @Delete('departments/:id')
   @ApiOperation({
@@ -164,8 +164,8 @@ export class LocationsController {
     return this.locationsService.findAllMunicipalities(departmentId);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('municipalities')
   @ApiOperation({
@@ -207,8 +207,8 @@ export class LocationsController {
     return this.locationsService.findMunicipalityById(id);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Patch('municipalities/:id')
   @ApiOperation({
@@ -235,8 +235,8 @@ export class LocationsController {
     return this.locationsService.updateMunicipality(id, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
   @ApiBearerAuth()
   @Delete('municipalities/:id')
   @ApiOperation({
@@ -275,8 +275,8 @@ export class LocationsController {
     return this.locationsService.findAllLocationTypes();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('types')
   @ApiOperation({
@@ -319,8 +319,8 @@ export class LocationsController {
     return this.locationsService.findAllLocations(municipalityId);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post()
   @ApiOperation({
@@ -358,8 +358,8 @@ export class LocationsController {
     return this.locationsService.findLocationById(id);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Patch(':id')
   @ApiOperation({
@@ -386,8 +386,8 @@ export class LocationsController {
     return this.locationsService.updateLocation(id, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
   @ApiBearerAuth()
   @Delete(':id')
   @ApiOperation({

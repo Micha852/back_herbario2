@@ -19,10 +19,10 @@ import {
 import { Response } from 'express';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
-import { UserRole } from '../users/enums/user-role.enum';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequirePermissions } from '../permissions/require-permissions.decorator';
+import { PERMISSIONS } from '../permissions/permissions.constants';
 
 @ApiTags('Reports')
 @Controller('reports')
@@ -43,8 +43,8 @@ export class ReportsController {
     return this.reportsService.getStatistics();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.REPORTS_GENERATE)
   @ApiBearerAuth()
   @Get('collector/:id')
   @ApiOperation({
@@ -68,7 +68,9 @@ export class ReportsController {
     return this.reportsService.getSpecimensByCollector(id);
   }
 
-  @Public()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.REPORTS_GENERATE)
+  @ApiBearerAuth()
   @Get('darwin-core')
   @ApiOperation({
     summary: 'Get Darwin Core format data',
@@ -95,7 +97,9 @@ export class ReportsController {
     return this.reportsService.getDarwinCoreData(startDate, endDate);
   }
 
-  @Public()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.REPORTS_GENERATE)
+  @ApiBearerAuth()
   @Get('darwin-core/csv')
   @ApiOperation({
     summary: 'Download Darwin Core data as CSV',

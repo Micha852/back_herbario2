@@ -3,7 +3,7 @@
 > **Fuente de verdad** del estado funcional del proyecto (back + front).
 > Los demás documentos en `back_herbario2/docs` y `front_herbario2/docs` son planes detallados/históricos; si contradicen este archivo, manda este.
 
-**Última actualización:** 30 de septiembre de 2026
+**Última actualización:** 1 de octubre de 2026
 
 ---
 
@@ -36,6 +36,7 @@ Reconstruir el sistema de información del Herbario de la Universidad de la Amaz
 | D5 | El contenido institucional (historia, datos, contacto, términos) se gestiona como CMS en la tabla `SystemInfo`. | Ya implementado. |
 | D6 | Imágenes en **disco local** (`uploads/`) con versiones thumbnail/medium/large generadas por sharp. | Suficiente para el alcance actual. |
 | D7 | **Eliminar muestra = borrado real** (filas, recolectores, comentarios e imágenes en disco). | Decidido en el commit `d9a581f`. |
+| D8 | **Roles + permisos ajustables.** ADMINISTRADOR = superadmin (todo, no recortable). COLABORADOR arranca con permisos por defecto y el admin puede conceder/quitar por persona. VISITANTE consulta y comenta. Gestionar usuarios y permisos nunca se delega. | Mismo reparto que HDUA 1.0, pero validado en el back (en HDUA casi todo era solo visual) y configurable. Ver sección 3.9. |
 
 ### Decisiones pendientes
 - **Módulo `info` duplicado** en el back (mismo `SystemInfo` que `system-info`): propuesta, eliminarlo.
@@ -105,8 +106,9 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 
 | Funcionalidad | Ref. | Back | Front | Notas |
 |---|---|---|---|---|
-| Listar / buscar usuarios | CU-008/009/011 | ✅ | ❌ | `/panel/usuarios` enlazado en el sidebar pero no existe |
+| Listar / buscar usuarios | CU-008/009/011 | ✅ | ❌ | `/panel/usuarios` aún no existe (solo ADMIN) |
 | Cambiar rol, marcar recolector, activar/desactivar | CU-010/026 | ✅ | ❌ | |
+| Gestionar permisos por colaborador (switches) | D8 | ✅ | ❌ | API lista (`/permissions`); falta la pestaña "Permisos" en Usuarios |
 
 ### 3.7 Panel: informes y descargas
 
@@ -125,6 +127,29 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 | Buzón de sugerencias (correo al herbario) | HDUA | ✅ | ❌ | |
 
 ---
+
+### 3.9 Roles y permisos (D8)
+
+Código: `back_herbario2/src/modules/permissions/` (catálogo en `permissions.constants.ts`) y espejo en `front_herbario2/lib/permissions.ts`.
+El back valida cada acción con `@RequirePermissions(...)` + `PermissionsGuard`; los permisos efectivos se calculan en cada petición (los cambios del admin aplican al instante).
+
+| Permiso | Qué permite | ADMIN | COLABORADOR (defecto) | VISITANTE |
+|---|---|---|---|---|
+| `specimens.create` | Registrar muestras | ✅ | ✅ | ❌ |
+| `specimens.edit_own` | Editar las muestras que registró (datos, recolectores, imágenes) | ✅ | ✅ | ❌ |
+| `specimens.edit_any` | Editar cualquier muestra | ✅ | ❌ | ❌ |
+| `specimens.status` | Activar/inactivar y ver muestras inactivas | ✅ | ❌ | ❌ |
+| `specimens.delete` | Eliminar muestras | ✅ | ❌ | ❌ |
+| `catalogs.manage` | Crear/editar taxonomía, ubicaciones, proyectos, parámetros | ✅ | ✅ | ❌ |
+| `catalogs.delete` | Inhabilitar/eliminar en catálogos | ✅ | ❌ | ❌ |
+| `reports.generate` | Informes y Darwin Core | ✅ | ✅ | ❌ |
+| `cms.edit` | Páginas institucionales | ✅ | ❌ | ❌ |
+| `comments.moderate` | Eliminar comentarios ajenos | ✅ | ❌ | ❌ |
+| *(no delegable)* | Gestionar usuarios y permisos | ✅ | ❌ | ❌ |
+
+Todos los usuarios con sesión: comentar, editar/borrar sus comentarios, gestionar su perfil. Consultar no requiere sesión.
+
+Muestras registradas antes de que existiera `createdBy` solo las edita quien tenga `specimens.edit_any`.
 
 ## 4. Bugs y deuda técnica conocidos
 
@@ -163,7 +188,7 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 - [ ] Assets vacíos de plantilla en `public/` y `find-cascade.ps1` suelto.
 
 ### Ambos
-- [ ] Tests: prácticamente ninguno (back: scaffold; front: sin runner).
+- [ ] Tests: back con 19 tests unitarios (lógica de permisos y guard); faltan servicios y e2e. Front sin runner.
 - [ ] Sin Docker, CI ni health check.
 
 ---
@@ -187,8 +212,9 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 ### Fase C - Panel completo ⏳
 - [x] Editar muestra (`/panel/muestras/[id]/editar`), reutilizando el asistente (`components/panel/specimen-form/specimen-form.tsx`).
 - [x] Imágenes múltiples: subida al crear + gestión en edición (principal, tipo, descripción, quitar).
+- [x] Capa de permisos (back + front): catálogo, guard, ajustes por usuario, endpoints migrados de roles a permisos. Ver 3.9.
 - [ ] Catálogos: taxonomía, morfología, referencias, ubicaciones, proyectos/protocolos.
-- [ ] Usuarios (`/panel/usuarios`): listar, rol, recolector, estado.
+- [ ] Usuarios (`/panel/usuarios`): listar, rol, recolector, estado + pestaña "Permisos" con switches por colaborador.
 - [ ] Dashboard con datos reales.
 
 ### Fase D - Informes y descargas ⏳
@@ -197,7 +223,7 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 - [ ] Estadísticas con gráficas (por familia, departamento, periodo).
 
 ### Fase E - Calidad y despliegue ⏳
-- [ ] Tests: unitarios de servicios críticos (specimens, auth) y e2e de los flujos principales.
+- [ ] Tests: unitarios de servicios críticos (specimens, auth) y e2e de los flujos principales. ✅ Permisos (19 tests).
 - [x] Refresh de token automático.
 - [ ] Middleware de rutas en el front.
 - [ ] Buzón de sugerencias en el front.
@@ -229,3 +255,22 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 | `front_herbario2/docs/ROADMAP_PANEL_ADMIN.md` | Plan detallado del CRUD de muestras; estado aquí |
 | `front_herbario2/docs/PROGRESO.md`, `DESARROLLO.md` | Históricos |
 | `front_herbario2/docs/components.md` | Vigente: documentación de la librería UI |
+
+
+---
+
+## 8. Bitácora
+
+Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
+
+### 2026-10-01
+- **Roles y permisos (D8):** tabla `user_permissions` (migración `20261001154723_add_user_permissions`), catálogo de 10 permisos, `@RequirePermissions` + `PermissionsGuard`, endpoints de gestión `/permissions` (solo ADMIN). ~60 endpoints migrados de `@Roles` a permisos. Colaborador: edita solo sus muestras; no cambia estado ni ve inactivas; no CMS ni moderación. Darwin Core deja de ser público (`reports.generate`).
+- **Front con permisos:** `usePermissions()`; sidebar, listado (editar/eliminar/nueva/filtro de estado), página de editar (aviso si no es suya, interruptor de estado solo con permiso) y moderación de comentarios según permisos. El perfil refresca los permisos al cargar la app.
+- **Tests:** 19 unitarios en el back (permisos + guard) y prueba integral de 26 casos contra el API. Primer `next build` de producción exitoso.
+
+### 2026-09-30
+- **Fase A cerrada:** CMS protegido; secretos JWT obligatorios con validación de `.env`; rate limiting; correos escapados y recuperar contraseña sin bloquear usuarios (correo en consola sin SMTP); contador de catálogo atómico; `/health`; seguro en `seed.ts`; `.env.example` completo.
+- **Fase B cerrada:** galería pública con filtros en cascada y URL compartible; ficha con galería de imágenes, mapa Leaflet y comentarios (solo el autor edita; ADMIN modera).
+- **Panel:** editar muestra (asistente compartido), gestor de imágenes (hasta 10, principal, tipo, descripción, inhabilitar, borrado permanente), creado/editado por, seed de 18 muestras de prueba.
+- **UI:** DatePicker y Select propios, ConfirmDialog, LoadingOverlay, Switch, toasts globales, modo claro forzado.
+- **Seguridad:** fugas de hash de contraseña cerradas (`publicUserSelect`), muestras inactivas ocultas al público, `uploads/` fuera de git.

@@ -21,10 +21,10 @@ import { CreateTaxonomyDto } from './dto/create-taxonomy.dto';
 import { UpdateTaxonomyDto } from './dto/update-taxonomy.dto';
 import { TaxonomyType } from './enums/taxonomy-type.enum';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
-import { UserRole } from '../users/enums/user-role.enum';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequirePermissions } from '../permissions/require-permissions.decorator';
+import { PERMISSIONS } from '../permissions/permissions.constants';
 
 @ApiTags('Taxonomy')
 @Controller('taxonomy')
@@ -43,8 +43,8 @@ export class TaxonomyController {
     return this.taxonomyService.getDivisions();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('divisions')
   @ApiOperation({
@@ -56,8 +56,8 @@ export class TaxonomyController {
     return this.taxonomyService.create(TaxonomyType.DIVISION, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Patch('divisions/:id')
   @ApiOperation({ summary: 'Update a division' })
@@ -67,8 +67,8 @@ export class TaxonomyController {
     return this.taxonomyService.update(TaxonomyType.DIVISION, id, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
   @ApiBearerAuth()
   @Delete('divisions/:id')
   @ApiOperation({ summary: 'Delete a division' })
@@ -90,8 +90,8 @@ export class TaxonomyController {
     return this.taxonomyService.getClasses();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('classes')
   @ApiOperation({
@@ -103,8 +103,8 @@ export class TaxonomyController {
     return this.taxonomyService.create(TaxonomyType.CLASS, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Patch('classes/:id')
   @ApiOperation({ summary: 'Update a class' })
@@ -114,8 +114,8 @@ export class TaxonomyController {
     return this.taxonomyService.update(TaxonomyType.CLASS, id, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
   @ApiBearerAuth()
   @Delete('classes/:id')
   @ApiOperation({ summary: 'Delete a class' })
@@ -137,8 +137,8 @@ export class TaxonomyController {
     return this.taxonomyService.getOrders();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('orders')
   @ApiOperation({
@@ -150,8 +150,8 @@ export class TaxonomyController {
     return this.taxonomyService.create(TaxonomyType.ORDER, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Patch('orders/:id')
   @ApiOperation({ summary: 'Update an order' })
@@ -161,8 +161,8 @@ export class TaxonomyController {
     return this.taxonomyService.update(TaxonomyType.ORDER, id, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
   @ApiBearerAuth()
   @Delete('orders/:id')
   @ApiOperation({ summary: 'Delete an order' })
@@ -184,8 +184,8 @@ export class TaxonomyController {
     return this.taxonomyService.getFamilies();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('families')
   @ApiOperation({
@@ -197,8 +197,8 @@ export class TaxonomyController {
     return this.taxonomyService.create(TaxonomyType.FAMILY, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Patch('families/:id')
   @ApiOperation({ summary: 'Update a family' })
@@ -208,8 +208,8 @@ export class TaxonomyController {
     return this.taxonomyService.update(TaxonomyType.FAMILY, id, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
   @ApiBearerAuth()
   @Delete('families/:id')
   @ApiOperation({ summary: 'Delete a family' })
@@ -231,8 +231,8 @@ export class TaxonomyController {
     return this.taxonomyService.getGenera();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('genera')
   @ApiOperation({
@@ -244,8 +244,8 @@ export class TaxonomyController {
     return this.taxonomyService.create(TaxonomyType.GENUS, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Patch('genera/:id')
   @ApiOperation({ summary: 'Update a genus' })
@@ -255,8 +255,8 @@ export class TaxonomyController {
     return this.taxonomyService.update(TaxonomyType.GENUS, id, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
   @ApiBearerAuth()
   @Delete('genera/:id')
   @ApiOperation({ summary: 'Delete a genus' })
@@ -278,8 +278,8 @@ export class TaxonomyController {
     return this.taxonomyService.getSpecies();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('species')
   @ApiOperation({
@@ -291,8 +291,8 @@ export class TaxonomyController {
     return this.taxonomyService.create(TaxonomyType.SPECIES, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Patch('species/:id')
   @ApiOperation({ summary: 'Update a species' })
@@ -302,8 +302,8 @@ export class TaxonomyController {
     return this.taxonomyService.update(TaxonomyType.SPECIES, id, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
   @ApiBearerAuth()
   @Delete('species/:id')
   @ApiOperation({ summary: 'Delete a species' })
@@ -325,8 +325,8 @@ export class TaxonomyController {
     return this.taxonomyService.getVenationTypes();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('venation-types')
   @ApiOperation({ summary: 'Create a new venation type' })
@@ -335,8 +335,8 @@ export class TaxonomyController {
     return this.taxonomyService.create(TaxonomyType.VENATION_TYPE, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Patch('venation-types/:id')
   @ApiOperation({ summary: 'Update a venation type' })
@@ -346,8 +346,8 @@ export class TaxonomyController {
     return this.taxonomyService.update(TaxonomyType.VENATION_TYPE, id, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
   @ApiBearerAuth()
   @Delete('venation-types/:id')
   @ApiOperation({ summary: 'Delete a venation type' })
@@ -369,8 +369,8 @@ export class TaxonomyController {
     return this.taxonomyService.getFormTypes();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('form-types')
   @ApiOperation({ summary: 'Create a new form type' })
@@ -379,8 +379,8 @@ export class TaxonomyController {
     return this.taxonomyService.create(TaxonomyType.FORM_TYPE, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Patch('form-types/:id')
   @ApiOperation({ summary: 'Update a form type' })
@@ -390,8 +390,8 @@ export class TaxonomyController {
     return this.taxonomyService.update(TaxonomyType.FORM_TYPE, id, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
   @ApiBearerAuth()
   @Delete('form-types/:id')
   @ApiOperation({ summary: 'Delete a form type' })
@@ -413,8 +413,8 @@ export class TaxonomyController {
     return this.taxonomyService.getMarginTypes();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('margin-types')
   @ApiOperation({ summary: 'Create a new margin type' })
@@ -423,8 +423,8 @@ export class TaxonomyController {
     return this.taxonomyService.create(TaxonomyType.MARGIN_TYPE, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Patch('margin-types/:id')
   @ApiOperation({ summary: 'Update a margin type' })
@@ -434,8 +434,8 @@ export class TaxonomyController {
     return this.taxonomyService.update(TaxonomyType.MARGIN_TYPE, id, dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
   @ApiBearerAuth()
   @Delete('margin-types/:id')
   @ApiOperation({ summary: 'Delete a margin type' })

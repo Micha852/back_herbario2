@@ -32,5 +32,7 @@ export class LoginResponseDto {
     name: string;
     email: string;
     role: string;
+    /** Permisos efectivos (ver src/modules/permissions) */
+    permissions: string[];
   };
 }

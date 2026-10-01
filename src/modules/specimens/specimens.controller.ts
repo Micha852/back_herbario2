@@ -9,6 +9,7 @@ import {
   Query,
   HttpStatus,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,27 +23,40 @@ import { CreateSpecimenDto } from './dto/create-specimen.dto';
 import { SearchSpecimenDto } from './dto/search-specimen.dto';
 import { UpdateSpecimenDto } from './dto/update-specimen.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
-import { UserRole } from '../users/enums/user-role.enum';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserEntity } from '../users/entities/user.entity';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequirePermissions } from '../permissions/require-permissions.decorator';
+import { PERMISSIONS } from '../permissions/permissions.constants';
+import { PermissionsService } from '../permissions/permissions.service';
+import { hasPermission } from '../permissions/permissions.logic';
 
 /** ADMIN y COLABORADOR ven muestras inactivas; el público solo las activas */
+/** Ver muestras inactivas requiere el permiso de activar/inactivar */
 function canSeeInactive(user: UserEntity | null): boolean {
-  const role = user?.role?.name;
-  return role === UserRole.ADMIN || role === UserRole.COLLABORATOR;
+  return hasPermission(user?.permissions, PERMISSIONS.SPECIMENS_STATUS);
+}
+
+/** Cambiar isActive (crear inactiva o activar/inactivar) requiere specimens.status */
+function assertCanChangeStatus(user: UserEntity, isActive: boolean | undefined, creating = false) {
+  if (isActive === undefined || (creating && isActive)) return;
+  if (!hasPermission(user.permissions, PERMISSIONS.SPECIMENS_STATUS)) {
+    throw new ForbiddenException('No tienes permiso para activar o inactivar muestras');
+  }
 }
 
 @ApiTags('Specimens')
 @Controller('specimens')
 export class SpecimensController {
-  constructor(private readonly specimensService: SpecimensService) { }
+  constructor(
+    private readonly specimensService: SpecimensService,
+    private readonly permissionsService: PermissionsService,
+  ) {}
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.SPECIMENS_CREATE)
   @ApiBearerAuth()
   @Post()
   @ApiOperation({
@@ -66,6 +80,7 @@ export class SpecimensController {
     description: 'Insufficient permissions',
   })
   create(@Body() dto: CreateSpecimenDto, @CurrentUser() user: UserEntity) {
+    assertCanChangeStatus(user, dto.isActive, true);
     return this.specimensService.create(dto, user.id);
   }
 
@@ -105,8 +120,8 @@ export class SpecimensController {
     return this.specimensService.getOrigins();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('reference/origins')
   @ApiOperation({
@@ -135,8 +150,8 @@ export class SpecimensController {
     return this.specimensService.getConditions();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('reference/conditions')
   @ApiOperation({
@@ -165,8 +180,8 @@ export class SpecimensController {
     return this.specimensService.getOriginTypes();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('reference/origin-types')
   @ApiOperation({
@@ -195,8 +210,8 @@ export class SpecimensController {
     return this.specimensService.getHabitats();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
   @ApiBearerAuth()
   @Post('reference/habitats')
   @ApiOperation({
@@ -231,8 +246,8 @@ export class SpecimensController {
     return this.specimensService.findOne(id, canSeeInactive(user));
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN, PERMISSIONS.SPECIMENS_STATUS)
   @ApiBearerAuth()
   @Patch(':id')
   @ApiOperation({
@@ -252,16 +267,22 @@ export class SpecimensController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Not authenticated',
   })
-  update(
+  async update(
     @Param('id') id: string,
     @Body() dto: UpdateSpecimenDto,
     @CurrentUser() user: UserEntity,
   ) {
+    assertCanChangeStatus(user, dto.isActive);
+    // Con solo isActive basta specimens.status; cualquier otro campo exige poder editarla
+    const onlyStatus = Object.keys(dto).every((key) => key === 'isActive');
+    if (!onlyStatus || !hasPermission(user.permissions, PERMISSIONS.SPECIMENS_STATUS)) {
+      await this.permissionsService.assertCanEditSpecimen(user, id);
+    }
     return this.specimensService.update(id, dto, user.id);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
   @ApiBearerAuth()
   @Patch(':id/image')
   @ApiOperation({
@@ -273,16 +294,17 @@ export class SpecimensController {
     status: HttpStatus.OK,
     description: 'Image updated successfully',
   })
-  updateImage(
+  async updateImage(
     @Param('id') id: string,
     @Body('imageId') imageId: string,
     @CurrentUser() user: UserEntity,
   ) {
+    await this.permissionsService.assertCanEditSpecimen(user, id);
     return this.specimensService.updateImage(id, imageId, user.id);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.SPECIMENS_DELETE)
   @ApiBearerAuth()
   @Delete(':id')
   @ApiOperation({
@@ -317,8 +339,8 @@ export class SpecimensController {
     return this.specimensService.getCollectors(id);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
   @ApiBearerAuth()
   @Post(':id/collectors/:userId')
   @ApiOperation({
@@ -331,16 +353,17 @@ export class SpecimensController {
     status: HttpStatus.OK,
     description: 'Collector added successfully',
   })
-  addCollector(
+  async addCollector(
     @Param('id') id: string,
     @Param('userId') userId: string,
     @CurrentUser() user: UserEntity,
   ) {
+    await this.permissionsService.assertCanEditSpecimen(user, id);
     return this.specimensService.addCollector(id, userId, user.id);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
   @ApiBearerAuth()
   @Delete(':id/collectors/:userId')
   @ApiOperation({
@@ -353,11 +376,12 @@ export class SpecimensController {
     status: HttpStatus.OK,
     description: 'Collector removed successfully',
   })
-  removeCollector(
+  async removeCollector(
     @Param('id') id: string,
     @Param('userId') userId: string,
     @CurrentUser() user: UserEntity,
   ) {
+    await this.permissionsService.assertCanEditSpecimen(user, id);
     return this.specimensService.removeCollector(id, userId, user.id);
   }
 }

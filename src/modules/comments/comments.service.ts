@@ -82,11 +82,11 @@ export class CommentsService {
     });
   }
 
-  /** El autor o un ADMIN pueden eliminar (moderación) */
-  async remove(id: string, userId: string, isAdmin = false) {
+  /** El autor o quien tenga comments.moderate pueden eliminar */
+  async remove(id: string, userId: string, canModerate = false) {
     const comment = await this.findOne(id);
 
-    if (comment.userId !== userId && !isAdmin) {
+    if (comment.userId !== userId && !canModerate) {
       throw new ForbiddenException('Solo puedes eliminar tus propios comentarios');
     }
 

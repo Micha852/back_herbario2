@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { escapeHtml } from '../../common/utils/html.util';
+import { PermissionsService } from '../permissions/permissions.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -18,6 +19,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private mailService: MailService,
+    private permissionsService: PermissionsService,
   ) {}
 
   /**
@@ -55,6 +57,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role?.name || 'VISITANTE',
+        permissions: await this.permissionsService.getEffectivePermissions(user.id, user.role?.name),
       },
     };
   }
