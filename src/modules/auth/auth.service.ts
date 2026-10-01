@@ -80,6 +80,8 @@ export class AuthService {
       });
 
       const user = await this.usersService.findOne(payload.sub);
+      // Un usuario desactivado no puede renovar su sesión
+      if (!user.isActive) throw new Error('inactive');
 
       const newPayload: JwtPayload = {
         sub: user.id,

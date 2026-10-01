@@ -1,166 +1,99 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
-  Query,
+  Get,
+  HttpCode,
   HttpStatus,
-  UseInterceptors,
-  ClassSerializerInterceptor,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiParam,
-  ApiQuery,
   ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UsersAdminService } from './users-admin.service';
+import {
+  AdminCreateUserDto,
+  AdminListUsersQuery,
+  AdminUpdateUserDto,
+} from './dto/admin-user.dto';
 import { UserEntity } from './entities/user.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from './enums/user-role.enum';
 
+/**
+ * Gestión de usuarios: exclusiva del ADMINISTRADOR (no se delega como permiso),
+ * excepto la lista pública de recolectores que usan los formularios.
+ */
 @ApiTags('Users')
 @Controller('users')
-@UseInterceptors(ClassSerializerInterceptor)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly usersAdminService: UsersAdminService,
+  ) {}
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiBearerAuth()
-  @Post()
-  @ApiOperation({
-    summary: 'Create a new user',
-    description: 'Creates a new user with specified role. Requires ADMIN role.',
-  })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'User created successfully',
-    type: UserEntity,
-  })
-  @ApiResponse({
-    status: HttpStatus.CONFLICT,
-    description: 'Email already exists',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  @ApiResponse({
-    status: HttpStatus.FORBIDDEN,
-    description: 'Insufficient permissions',
-  })
-  async create(@Body() createUserDto: CreateUserDto): Promise<UserEntity> {
-    return this.usersService.create(createUserDto);
+  @Public()
+  @Get('collectors')
+  @ApiOperation({ summary: 'Recolectores activos (solo id y nombre)' })
+  async getCollectors() {
+    const collectors = await this.usersService.getCollectors();
+    // Endpoint público: sin correos ni otros datos personales
+    return collectors.map(({ id, name }) => ({ id, name }));
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @Get()
-  @ApiOperation({
-    summary: 'Get all users with optional filters',
-    description: 'Returns list of users with optional filters. Requires ADMIN role.',
-  })
-  @ApiQuery({
-    name: 'isActive',
-    required: false,
-    type: Boolean,
-    description: 'Filter by active status',
-  })
-  @ApiQuery({
-    name: 'isCollector',
-    required: false,
-    type: Boolean,
-    description: 'Filter by collector status',
-  })
-  @ApiQuery({
-    name: 'roleId',
-    required: false,
-    type: String,
-    description: 'Filter by role ID',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Users retrieved successfully',
-    type: [UserEntity],
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  async findAll(
-    @Query('isActive') isActive?: string,
-    @Query('isCollector') isCollector?: string,
-    @Query('roleId') roleId?: string,
-  ): Promise<UserEntity[]> {
-    const filters: any = {};
-
-    if (isActive !== undefined) {
-      filters.isActive = isActive === 'true';
-    }
-
-    if (isCollector !== undefined) {
-      filters.isCollector = isCollector === 'true';
-    }
-
-    if (roleId) {
-      filters.roleId = roleId;
-    }
-
-    return this.usersService.findAll(filters);
+  @ApiOperation({ summary: 'Listar usuarios (búsqueda, filtros y paginación)' })
+  @ApiQuery({ name: 'search', required: false, description: 'Nombre o correo' })
+  @ApiQuery({ name: 'role', required: false, enum: Object.values(UserRole) })
+  @ApiQuery({ name: 'isActive', required: false, type: Boolean })
+  @ApiQuery({ name: 'isCollector', required: false, type: Boolean })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  list(@Query() query: AdminListUsersQuery) {
+    return this.usersAdminService.list(query);
   }
 
-  @Public()
-  @Get('collectors')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @Post()
   @ApiOperation({
-    summary: 'Get all collectors',
-    description: 'Returns list of users marked as collectors. Public endpoint for specimen forms.',
+    summary: 'Crear usuario',
+    description:
+      'Sin contraseña: se genera una temporal, se envía por correo y se devuelve una sola vez.',
   })
   @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Collectors retrieved successfully',
-    type: [UserEntity],
+    status: HttpStatus.CONFLICT,
+    description: 'El correo ya está registrado',
   })
-  async getCollectors(): Promise<UserEntity[]> {
-    return this.usersService.getCollectors();
+  create(@Body() dto: AdminCreateUserDto) {
+    return this.usersAdminService.create(dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @Get(':id')
-  @ApiOperation({
-    summary: 'Get user by ID',
-    description: 'Returns user details. Requires ADMIN role.',
-  })
-  @ApiParam({ name: 'id', description: 'User UUID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'User retrieved successfully',
-    type: UserEntity,
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'User not found',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  async findOne(@Param('id') id: string): Promise<UserEntity> {
-    return this.usersService.findOne(id);
+  @ApiOperation({ summary: 'Obtener usuario' })
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersAdminService.findOne(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -168,28 +101,29 @@ export class UsersController {
   @ApiBearerAuth()
   @Patch(':id')
   @ApiOperation({
-    summary: 'Update user',
-    description: 'Updates user information. Requires ADMIN role.',
+    summary: 'Editar usuario (rol, recolector, estado...)',
+    description:
+      'Un admin no puede quitarse su rol ni desactivarse, y siempre debe quedar al menos un admin activo.',
   })
-  @ApiParam({ name: 'id', description: 'User UUID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'User updated successfully',
-    type: UserEntity,
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AdminUpdateUserDto,
+    @CurrentUser() admin: UserEntity,
+  ) {
+    return this.usersAdminService.update(id, dto, admin.id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @Post(':id/reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Restablecer contraseña (genera una temporal y la envía por correo)',
   })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'User not found',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  async update(
-    @Param('id') id: string,
-    @Body() updateUserDto: UpdateUserDto,
-  ): Promise<UserEntity> {
-    return this.usersService.update(id, updateUserDto);
+  resetPassword(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersAdminService.resetPassword(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -197,23 +131,13 @@ export class UsersController {
   @ApiBearerAuth()
   @Delete(':id')
   @ApiOperation({
-    summary: 'Soft delete user (deactivate)',
-    description: 'Deactivates a user (sets isActive to false). Requires ADMIN role.',
+    summary: 'Desactivar usuario (equivale a PATCH isActive=false)',
   })
-  @ApiParam({ name: 'id', description: 'User UUID' })
-  @ApiResponse({
-    status: HttpStatus.NO_CONTENT,
-    description: 'User deactivated successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'User not found',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.usersService.remove(id);
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() admin: UserEntity,
+  ) {
+    await this.usersAdminService.update(id, { isActive: false }, admin.id);
+    return { message: 'Usuario desactivado' };
   }
 }

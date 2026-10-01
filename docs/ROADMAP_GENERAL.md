@@ -108,9 +108,9 @@ Módulo genérico `/catalogs` (19 catálogos definidos en `back_herbario2/src/mo
 
 | Funcionalidad | Ref. | Back | Front | Notas |
 |---|---|---|---|---|
-| Listar / buscar usuarios | CU-008/009/011 | ✅ | ❌ | `/panel/usuarios` aún no existe (solo ADMIN) |
-| Cambiar rol, marcar recolector, activar/desactivar | CU-010/026 | ✅ | ❌ | |
-| Gestionar permisos por colaborador (switches) | D8 | ✅ | ❌ | API lista (`/permissions`); falta la pestaña "Permisos" en Usuarios |
+| Listar / buscar / crear usuarios | CU-008/009/011 | ✅ | ✅ | `/panel/usuarios` (solo ADMIN): búsqueda, filtros por rol/estado/recolector, conteo por rol. Al crear se genera una contraseña temporal (se envía por correo y se muestra una vez) |
+| Cambiar rol, marcar recolector, activar/desactivar, restablecer contraseña | CU-010/026 | ✅ | ✅ | Botón rápido "Hacer colaborador" para visitantes. Protecciones: el admin no se quita el rol ni se desactiva, y siempre queda un admin activo. Un desactivado no puede iniciar sesión ni renovar el token. Cambiar de rol descarta los permisos ajustados |
+| Gestionar permisos por colaborador (switches) | D8 | ✅ | ✅ | Pestaña "Permisos": lista de colaboradores, switches agrupados con marca "Ajustado / Por defecto" y "Restablecer" |
 
 ### 3.7 Panel: informes y descargas
 
@@ -190,7 +190,7 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 - [ ] Assets vacíos de plantilla en `public/` y `find-cascade.ps1` suelto.
 
 ### Ambos
-- [ ] Tests: back con 34 tests unitarios (permisos, guard, validación de catálogos); faltan servicios y e2e. Front sin runner.
+- [ ] Tests: back con 40 tests unitarios (permisos, guard, validación de catálogos, reglas de usuarios); faltan servicios y e2e. Front sin runner.
 - [ ] Sin Docker, CI ni health check.
 
 ---
@@ -216,7 +216,7 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 - [x] Imágenes múltiples: subida al crear + gestión en edición (principal, tipo, descripción, quitar).
 - [x] Capa de permisos (back + front): catálogo, guard, ajustes por usuario, endpoints migrados de roles a permisos. Ver 3.9.
 - [x] Catálogos: taxonomía, morfología, referencias, ubicaciones, proyectos/protocolos (`/panel/catalogos`).
-- [ ] Usuarios (`/panel/usuarios`): listar, rol, recolector, estado + pestaña "Permisos" con switches por colaborador.
+- [x] Usuarios (`/panel/usuarios`): listar, crear, editar, rol, recolector, estado, restablecer contraseña + pestaña "Permisos" con switches por colaborador.
 - [x] Dashboard con datos reales.
 
 ### Fase D - Informes y descargas ⏳
@@ -266,6 +266,7 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
 ### 2026-10-01
+- **Usuarios (Fase C):** `UsersAdminService` + endpoints de gestión (`GET/POST /users`, `GET/PATCH/DELETE /users/:id`, `POST /users/:id/reset-password`), contraseña temporal segura, reglas de "último admin" y auto-degradación (6 tests unitarios) y prueba integral de 31 casos. `/users/collectors` ya no expone correos (solo id y nombre) y el paso 5 del formulario de muestras muestra bien los nombres. `/auth/refresh` rechaza usuarios desactivados. Front: `/panel/usuarios` con pestañas Usuarios y Permisos.
 - **Catálogos (Fase C):** módulo genérico `/catalogs` con 19 catálogos (validación en español, uso, inhabilitar, eliminar solo sin uso, duplicados → 409); página `/panel/catalogos` con pestañas por grupo, filtro por nivel superior, formulario generado desde las definiciones (mapa de vista previa en localidades). 15 tests unitarios nuevos + prueba integral. Escrituras viejas de catálogos eliminadas.
 - **Dashboard real:** endpoint `/reports/dashboard` (respeta permisos: las inactivas solo con `specimens.status`); tarjetas Muestras / Mis muestras / Sin imagen / Proyectos, últimas muestras con miniatura, últimos comentarios y acciones rápidas según permisos. Página 404 propia.
 - **Roles y permisos (D8):** tabla `user_permissions` (migración `20261001154723_add_user_permissions`), catálogo de 10 permisos, `@RequirePermissions` + `PermissionsGuard`, endpoints de gestión `/permissions` (solo ADMIN). ~60 endpoints migrados de `@Roles` a permisos. Colaborador: edita solo sus muestras; no cambia estado ni ve inactivas; no CMS ni moderación. Darwin Core deja de ser público (`reports.generate`).
