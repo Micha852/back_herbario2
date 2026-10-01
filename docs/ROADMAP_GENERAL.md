@@ -83,7 +83,7 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 
 | Funcionalidad | Ref. | Back | Front | Notas |
 |---|---|---|---|---|
-| Dashboard | CU-003 | ⚠️ | ⚠️ | Solo el total de muestras es real |
+| Dashboard | CU-003 | ✅ | ✅ | `GET /reports/dashboard`: totales según permisos, mis muestras, sin imagen, proyectos, recolectores, últimas muestras y comentarios |
 | Listado con búsqueda, filtros y paginación | CU-007 | ✅ | ✅ | |
 | Crear muestra (asistente 6 pasos) | CU-004 | ✅ | ✅ | Número de catálogo `HUAZ-000001` automático |
 | Subir varias imágenes al crear | D3 | ✅ | ✅ | Se asocian con tipo y descripción; la primera queda como principal; máximo 10 |
@@ -215,7 +215,7 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 - [x] Capa de permisos (back + front): catálogo, guard, ajustes por usuario, endpoints migrados de roles a permisos. Ver 3.9.
 - [ ] Catálogos: taxonomía, morfología, referencias, ubicaciones, proyectos/protocolos.
 - [ ] Usuarios (`/panel/usuarios`): listar, rol, recolector, estado + pestaña "Permisos" con switches por colaborador.
-- [ ] Dashboard con datos reales.
+- [x] Dashboard con datos reales.
 
 ### Fase D - Informes y descargas ⏳
 - [ ] Back: informe por recolector en PDF y Excel; Darwin Core en Excel; CSV bien escapado; ficha técnica en PDF.
@@ -264,6 +264,7 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
 ### 2026-10-01
+- **Dashboard real:** endpoint `/reports/dashboard` (respeta permisos: las inactivas solo con `specimens.status`); tarjetas Muestras / Mis muestras / Sin imagen / Proyectos, últimas muestras con miniatura, últimos comentarios y acciones rápidas según permisos. Página 404 propia.
 - **Roles y permisos (D8):** tabla `user_permissions` (migración `20261001154723_add_user_permissions`), catálogo de 10 permisos, `@RequirePermissions` + `PermissionsGuard`, endpoints de gestión `/permissions` (solo ADMIN). ~60 endpoints migrados de `@Roles` a permisos. Colaborador: edita solo sus muestras; no cambia estado ni ve inactivas; no CMS ni moderación. Darwin Core deja de ser público (`reports.generate`).
 - **Front con permisos:** `usePermissions()`; sidebar, listado (editar/eliminar/nueva/filtro de estado), página de editar (aviso si no es suya, interruptor de estado solo con permiso) y moderación de comentarios según permisos. El perfil refresca los permisos al cargar la app.
 - **Tests:** 19 unitarios en el back (permisos + guard) y prueba integral de 26 casos contra el API. Primer `next build` de producción exitoso.
