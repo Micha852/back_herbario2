@@ -5,6 +5,12 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { publicUserSelect } from '../../common/prisma/user-select';
+import {
+  normalizeTaxonLevel,
+  taxonomyInclude,
+  taxonomySearch,
+  taxonomyWhere,
+} from '../../common/prisma/taxonomy';
 import { ImagesService } from '../images/images.service';
 import { CreateSpecimenDto } from './dto/create-specimen.dto';
 import { SearchSpecimenDto } from './dto/search-specimen.dto';
@@ -17,30 +23,10 @@ export class SpecimensService {
   constructor(
     private prisma: PrismaService,
     private imagesService: ImagesService,
-  ) { }
+  ) {}
 
   private readonly includeRelations = {
-    species: {
-      include: {
-        genus: {
-          include: {
-            family: {
-              include: {
-                order: {
-                  include: {
-                    class: {
-                      include: {
-                        division: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    ...taxonomyInclude,
     location: {
       include: {
         municipality: {
@@ -91,7 +77,9 @@ export class SpecimensService {
       });
       if (!taken) return candidate;
     }
-    throw new BadRequestException('No se pudo generar un número de catálogo disponible');
+    throw new BadRequestException(
+      'No se pudo generar un número de catálogo disponible',
+    );
   }
 
   /**
@@ -101,16 +89,19 @@ export class SpecimensService {
     const { collectorIds, collectionDate, latitude, longitude, ...data } = dto;
 
     // Generate catalog number if not provided
-    const catalogNumber = dto.catalogNumber || await this.generateCatalogNumber();
+    const catalogNumber =
+      dto.catalogNumber || (await this.generateCatalogNumber());
 
     let specimen;
     try {
       specimen = await this.prisma.specimen.create({
         data: {
-          ...data,
+          ...normalizeTaxonLevel(data),
           catalogNumber,
           collectionDate: collectionDate ? new Date(collectionDate) : null,
-          collectionYear: collectionDate ? new Date(collectionDate).getUTCFullYear() : null,
+          collectionYear: collectionDate
+            ? new Date(collectionDate).getUTCFullYear()
+            : null,
           latitude: latitude != null ? new Decimal(latitude) : null,
           longitude: longitude != null ? new Decimal(longitude) : null,
           isActive: dto.isActive ?? true,
@@ -120,8 +111,13 @@ export class SpecimensService {
         include: this.includeRelations,
       });
     } catch (error: any) {
-      if (error.code === 'P2002' && error.meta?.target?.includes('catalogNumber')) {
-        throw new BadRequestException(`El número de catálogo '${catalogNumber}' ya existe. Por favor usa uno diferente.`);
+      if (
+        error.code === 'P2002' &&
+        error.meta?.target?.includes('catalogNumber')
+      ) {
+        throw new BadRequestException(
+          `El número de catálogo '${catalogNumber}' ya existe. Por favor usa uno diferente.`,
+        );
       }
       throw error;
     }
@@ -178,40 +174,42 @@ export class SpecimensService {
           { scientificName: contains },
           { commonName: contains },
           { catalogNumber: contains },
-          { species: { epithet: contains } },
-          { species: { genus: { name: contains } } },
-          { species: { genus: { family: { name: contains } } } },
+          ...taxonomySearch(contains),
         ],
       });
     }
 
     if (scientificName) {
-      and.push({ scientificName: { contains: scientificName, mode: 'insensitive' } });
+      and.push({
+        scientificName: { contains: scientificName, mode: 'insensitive' },
+      });
     }
     if (commonName) {
       and.push({ commonName: { contains: commonName, mode: 'insensitive' } });
     }
     if (catalogNumber) {
-      and.push({ catalogNumber: { contains: catalogNumber, mode: 'insensitive' } });
+      and.push({
+        catalogNumber: { contains: catalogNumber, mode: 'insensitive' },
+      });
     }
 
-    // Taxonomía: la muestra solo se liga a la especie; el resto se filtra por la jerarquía
-    if (speciesId) and.push({ speciesId });
-    if (genusId) and.push({ species: { genusId } });
-    if (familyId) and.push({ species: { genus: { familyId } } });
-    if (orderId) and.push({ species: { genus: { family: { orderId } } } });
-    if (classId) and.push({ species: { genus: { family: { order: { classId } } } } });
-    if (divisionId) {
-      and.push({ species: { genus: { family: { order: { class: { divisionId } } } } } });
-    }
+    // Taxonomía: la muestra se liga a especie, género o familia; un filtro incluye los niveles inferiores
+    if (speciesId) and.push(taxonomyWhere('species', speciesId));
+    if (genusId) and.push(taxonomyWhere('genus', genusId));
+    if (familyId) and.push(taxonomyWhere('family', familyId));
+    if (orderId) and.push(taxonomyWhere('order', orderId));
+    if (classId) and.push(taxonomyWhere('class', classId));
+    if (divisionId) and.push(taxonomyWhere('division', divisionId));
 
     // Ubicación: Departamento → Municipio → Ubicación
     if (locationId) and.push({ locationId });
     if (municipalityId) and.push({ location: { municipalityId } });
-    if (departmentId) and.push({ location: { municipality: { departmentId } } });
+    if (departmentId)
+      and.push({ location: { municipality: { departmentId } } });
 
     if (projectId) and.push({ projectId });
-    if (collectorId) and.push({ collectors: { some: { userId: collectorId } } });
+    if (collectorId)
+      and.push({ collectors: { some: { userId: collectorId } } });
 
     // Rango de fechas de colecta (endDate incluye todo el día)
     if (startDate || endDate) {
@@ -285,16 +283,26 @@ export class SpecimensService {
 
     // undefined = no cambiar · null = limpiar el campo
     const toDecimal = (value: number | null | undefined) =>
-      value === undefined ? undefined : value === null ? null : new Decimal(value);
+      value === undefined
+        ? undefined
+        : value === null
+          ? null
+          : new Decimal(value);
     const date =
-      collectionDate === undefined ? undefined : collectionDate ? new Date(collectionDate) : null;
+      collectionDate === undefined
+        ? undefined
+        : collectionDate
+          ? new Date(collectionDate)
+          : null;
 
     const specimen = await this.prisma.specimen.update({
       where: { id },
       data: {
-        ...data,
+        ...normalizeTaxonLevel(data),
         collectionDate: date,
-        ...(date !== undefined && { collectionYear: date ? date.getUTCFullYear() : null }),
+        ...(date !== undefined && {
+          collectionYear: date ? date.getUTCFullYear() : null,
+        }),
         latitude: toDecimal(latitude),
         longitude: toDecimal(longitude),
         ...(userId && { updatedById: userId }),
@@ -344,11 +352,14 @@ export class SpecimensService {
         await this.imagesService.hardDeleteImage(img.id);
       } catch (error: any) {
         // Log explicitly because we don't want a single missing image file to stop the DB deletion
-        console.error(`Error deleting image files for ${img.id}:`, error.message);
+        console.error(
+          `Error deleting image files for ${img.id}:`,
+          error.message,
+        );
       }
     }
 
-    // Delete the specimen record completely. 
+    // Delete the specimen record completely.
     // Prisma's onDelete: Cascade will handle specimen_collectors, comments, etc!
     return this.prisma.specimen.delete({
       where: { id },
@@ -473,5 +484,4 @@ export class SpecimensService {
   async createHabitat(name: string) {
     return this.prisma.habitat.create({ data: { name } });
   }
-
 }

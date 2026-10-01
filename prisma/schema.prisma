@@ -130,10 +130,20 @@ model Specimen {
   // Scientific identification
   scientificName String  @db.VarChar(200)
   commonName     String? @db.VarChar(200)
-  author         String? @db.VarChar(200) // Taxonomic author
+  author         String? @db.VarChar(200) // Autor del nombre científico (Darwin Core: scientificNameAuthorship)
 
-  // Taxonomic classification (only reference to species - hierarchy is resolved via relations)
-  speciesId String? // All taxonomy is obtained through: Species → Genus → Family → Order → Class → Division
+  // Identificación (Darwin Core: identifiedBy, dateIdentified). La fecha es texto: admite "2020-10" o rangos "2020-08-17/2020-10-20"
+  identifiedBy   String? @db.VarChar(200)
+  dateIdentified String? @db.VarChar(50)
+
+  // Recolectores que no son usuarios del sistema (nombres separados por " | "), p. ej. al importar Darwin Core
+  otherCollectors String? @db.VarChar(500)
+
+  // Taxonomía: la muestra se liga al nivel más bajo identificado (solo uno de los tres).
+  // El resto de la jerarquía se obtiene de ese nivel: Especie → Género → Familia → Orden → Clase → División
+  speciesId String?
+  genusId   String? // Identificada solo hasta género ("Piper sp.")
+  familyId  String? // Identificada solo hasta familia
 
   // Collection data
   collectionDate DateTime?
@@ -189,6 +199,8 @@ model Specimen {
 
   // Relations
   species      Species?      @relation(fields: [speciesId], references: [id])
+  genus        Genus?        @relation(fields: [genusId], references: [id])
+  family       Family?       @relation(fields: [familyId], references: [id])
   location     Location?     @relation(fields: [locationId], references: [id])
   venationType VenationType? @relation(fields: [venationTypeId], references: [id])
   formType     FormType?     @relation(fields: [formTypeId], references: [id])
@@ -211,6 +223,8 @@ model Specimen {
   @@index([commonName])
   @@index([collectionYear])
   @@index([speciesId])
+  @@index([genusId])
+  @@index([familyId])
   @@index([projectId])
   @@index([locationId])
   @@index([isVerified])
@@ -327,6 +341,7 @@ model Family {
   order  Order?  @relation(fields: [orderId], references: [id])
   genera Genus[]
 
+  specimens Specimen[]
   @@index([orderId])
   @@map("families")
 }
@@ -344,6 +359,7 @@ model Genus {
   family  Family?   @relation(fields: [familyId], references: [id])
   species Species[]
 
+  specimens Specimen[]
   @@unique([name, familyId])
   @@index([familyId])
   @@map("genera")

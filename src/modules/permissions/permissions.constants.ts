@@ -19,6 +19,7 @@ export const PERMISSIONS = {
   SPECIMENS_EDIT_ANY: 'specimens.edit_any',
   SPECIMENS_STATUS: 'specimens.status',
   SPECIMENS_DELETE: 'specimens.delete',
+  SPECIMENS_IMPORT: 'specimens.import',
   CATALOGS_MANAGE: 'catalogs.manage',
   CATALOGS_DELETE: 'catalogs.delete',
   REPORTS_GENERATE: 'reports.generate',
@@ -71,6 +72,13 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
     label: 'Eliminar muestras',
     description:
       'Borrar muestras de forma permanente (con sus imágenes y comentarios).',
+  },
+  {
+    key: PERMISSIONS.SPECIMENS_IMPORT,
+    group: 'Muestras',
+    label: 'Importar muestras (Darwin Core)',
+    description:
+      'Cargar muestras desde un Excel o CSV Darwin Core; crea la taxonomía, ubicaciones y catálogos que falten.',
   },
   {
     key: PERMISSIONS.CATALOGS_MANAGE,

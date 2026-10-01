@@ -9,6 +9,7 @@ import {
   MaxLength,
   Min,
   Max,
+  Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -76,12 +77,22 @@ export class CreateSpecimenDto {
   @Type(() => Number)
   altitude?: number;
 
-  // Taxonomic classification: the specimen only links to the species;
-  // genus, family, order, class and division come from the species hierarchy
-  @ApiPropertyOptional({ description: 'Species ID' })
+  // Taxonomía: se liga el nivel más bajo identificado (especie > género > familia).
+  // Si llegan varios, gana el más bajo; el resto de la jerarquía sale de ese nivel.
+  @ApiPropertyOptional({ description: 'Especie' })
   @IsOptional()
   @IsUUID()
   speciesId?: string;
+
+  @ApiPropertyOptional({ description: 'Género (si se identificó solo hasta género)' })
+  @IsOptional()
+  @IsUUID()
+  genusId?: string;
+
+  @ApiPropertyOptional({ description: 'Familia (si se identificó solo hasta familia)' })
+  @IsOptional()
+  @IsUUID()
+  familyId?: string;
 
   // Location
   @ApiPropertyOptional({ description: 'Location ID' })
@@ -194,14 +205,62 @@ export class CreateSpecimenDto {
   registryNumber?: string;
 
   @ApiPropertyOptional({
-    description: 'Author who identified the specimen',
-    example: 'Dr. Juan Pérez',
+    description: 'Autor del nombre científico (Darwin Core: scientificNameAuthorship)',
+    example: '(Willd.) Britton & Rose',
     maxLength: 200,
   })
   @IsOptional()
   @IsString()
   @MaxLength(200)
   author?: string;
+
+  @ApiPropertyOptional({
+    description: 'Quién identificó la muestra (Darwin Core: identifiedBy)',
+    example: 'Claudia M. Santofimio-Celis',
+    maxLength: 200,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  identifiedBy?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Fecha de identificación (Darwin Core: dateIdentified). Admite "2020", "2020-10", "2020-10-05" o rangos "2020-08-17/2020-10-20"',
+    example: '2020-10',
+    maxLength: 50,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  @Matches(/^\d{4}(-\d{2}(-\d{2})?)?(\/\d{4}(-\d{2}(-\d{2})?)?)?$/, {
+    message:
+      'La fecha de identificación debe tener el formato AAAA, AAAA-MM, AAAA-MM-DD o un rango con "/"',
+  })
+  dateIdentified?: string;
+
+  @ApiPropertyOptional({
+    description: 'Notas de identificación (Darwin Core: taxonRemarks)',
+  })
+  @IsOptional()
+  @IsString()
+  identificationNotes?: string;
+
+  @ApiPropertyOptional({ description: 'Notas de campo (Darwin Core: fieldNotes)' })
+  @IsOptional()
+  @IsString()
+  fieldNotes?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Recolectores que no son usuarios del sistema, separados por " | "',
+    example: 'Diego A. Caicedo-Araujo | Claudia A. Calderon-Soto',
+    maxLength: 500,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  otherCollectors?: string;
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()

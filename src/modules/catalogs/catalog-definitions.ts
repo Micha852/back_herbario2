@@ -172,7 +172,10 @@ export const CATALOGS: CatalogDefinition[] = [
       DESCRIPTION,
     ],
     parent: { field: 'orderId', catalog: 'orders' },
-    usage: [{ relation: 'genera', label: 'géneros' }],
+    usage: [
+      { relation: 'genera', label: 'géneros' },
+      { relation: 'specimens', label: 'muestras' },
+    ],
     searchFields: ['name'],
     orderBy: { name: 'asc' },
   },
@@ -202,7 +205,10 @@ export const CATALOGS: CatalogDefinition[] = [
       DESCRIPTION,
     ],
     parent: { field: 'familyId', catalog: 'families' },
-    usage: [{ relation: 'species', label: 'especies' }],
+    usage: [
+      { relation: 'species', label: 'especies' },
+      { relation: 'specimens', label: 'muestras' },
+    ],
     searchFields: ['name'],
     orderBy: { name: 'asc' },
   },

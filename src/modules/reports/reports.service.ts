@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { publicUserSelect } from '../../common/prisma/user-select';
+import { taxonomyInclude } from '../../common/prisma/taxonomy';
 import { PrismaService } from '../../database/prisma.service';
 import { Prisma } from '@prisma/client';
 import { PERMISSIONS } from '../permissions/permissions.constants';
@@ -102,27 +103,7 @@ export class ReportsService {
         collectors: { some: { userId: collectorId } },
       },
       include: {
-        species: {
-          include: {
-            genus: {
-              include: {
-                family: {
-                  include: {
-                    order: {
-                      include: {
-                        class: {
-                          include: {
-                            division: true,
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
+        ...taxonomyInclude,
         location: {
           include: {
             municipality: { include: { department: true } },
@@ -138,76 +119,6 @@ export class ReportsService {
       specimens,
       totalSpecimens: specimens.length,
     };
-  }
-
-  /**
-   * Get Darwin Core format data
-   */
-  async getDarwinCoreData(startDate?: string, endDate?: string) {
-    const where: any = { isActive: true };
-
-    if (startDate || endDate) {
-      where.collectionDate = {};
-      if (startDate) where.collectionDate.gte = new Date(startDate);
-      if (endDate) where.collectionDate.lte = new Date(endDate);
-    }
-
-    const specimens = await this.prisma.specimen.findMany({
-      where,
-      include: {
-        species: {
-          include: {
-            genus: {
-              include: {
-                family: {
-                  include: {
-                    order: {
-                      include: {
-                        class: {
-                          include: {
-                            division: true,
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        location: {
-          include: {
-            municipality: { include: { department: true } },
-          },
-        },
-        collectors: { include: { user: { select: publicUserSelect } } },
-      },
-    });
-
-    // Transform to Darwin Core format
-    return specimens.map((s) => ({
-      occurrenceID: s.id,
-      catalogNumber: s.catalogNumber,
-      scientificName: s.scientificName,
-      vernacularName: s.commonName,
-      class: s.species?.genus?.family?.order?.class?.name,
-      order: s.species?.genus?.family?.order?.name,
-      family: s.species?.genus?.family?.name,
-      genus: s.species?.genus?.name,
-      specificEpithet: s.species?.epithet,
-      eventDate: s.collectionDate?.toISOString().split('T')[0],
-      decimalLatitude: s.latitude?.toString(),
-      decimalLongitude: s.longitude?.toString(),
-      verbatimElevation: s.altitude,
-      country: 'Colombia',
-      stateProvince: s.location?.municipality?.department?.name,
-      municipality: s.location?.municipality?.name,
-      locality: s.location?.name,
-      recordedBy: s.collectors?.map((c) => c.user.name).join('; '),
-      identifiedBy: s.author,
-      occurrenceRemarks: s.localObservation,
-    }));
   }
 
   /**

@@ -1,0 +1,86 @@
+/**
+ * Términos Darwin Core que exporta e importa el sistema, en el orden de la plantilla
+ * de publicación usada por la colección (SiB Colombia / GBIF, registros biológicos).
+ */
+export const DWC_TERMS = [
+  // Registro
+  'occurrenceID',
+  'basisOfRecord',
+  'institutionCode',
+  'collectionCode',
+  'catalogNumber',
+  'type',
+  'language',
+  'accessRights',
+  'institutionID',
+  'collectionID',
+  'ownerInstitutionCode',
+  // Organismo
+  'occurrenceRemarks',
+  'recordNumber',
+  'recordedBy',
+  'individualCount',
+  'lifeStage',
+  'reproductiveCondition',
+  'establishmentMeans',
+  'disposition',
+  'previousIdentifications',
+  // Evento
+  'samplingProtocol',
+  'samplingEffort',
+  'eventDate',
+  'eventTime',
+  'year',
+  'month',
+  'day',
+  'verbatimEventDate',
+  'habitat',
+  'fieldNotes',
+  'eventRemarks',
+  // Ubicación
+  'locationID',
+  'higherGeographyID',
+  'continent',
+  'waterBody',
+  'country',
+  'countryCode',
+  'stateProvince',
+  'county',
+  'municipality',
+  'locality',
+  'verbatimElevation',
+  'minimumElevationInMeters',
+  'maximumElevationInMeters',
+  'locationRemarks',
+  'verbatimCoordinates',
+  'verbatimCoordinateSystem',
+  'decimalLatitude',
+  'decimalLongitude',
+  'geodeticDatum',
+  'georeferencedBy',
+  'georeferencedDate',
+  'georeferenceVerificationStatus',
+  // Identificación
+  'identifiedBy',
+  'dateIdentified',
+  // Taxón
+  'scientificName',
+  'kingdom',
+  'phylum',
+  'class',
+  'order',
+  'family',
+  'genus',
+  'specificEpithet',
+  'infraspecificEpithet',
+  'taxonRank',
+  'verbatimTaxonRank',
+  'scientificNameAuthorship',
+  'vernacularName',
+  'nomenclaturalCode',
+  'taxonRemarks',
+] as const;
+
+export type DwcTerm = (typeof DWC_TERMS)[number];
+export type DwcValue = string | number | null;
+export type DwcRecord = Record<DwcTerm, DwcValue>;

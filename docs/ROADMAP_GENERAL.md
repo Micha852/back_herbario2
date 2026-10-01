@@ -117,7 +117,9 @@ Módulo genérico `/catalogs` (19 catálogos definidos en `back_herbario2/src/mo
 | Funcionalidad | Ref. | Back | Front | Notas |
 |---|---|---|---|---|
 | Informe "muestras por recolector" (PDF y Excel) | CU-029…032, RF-006 | ⚠️ | ❌ | Back solo devuelve JSON |
-| Tabla Darwin Core por rango de fechas (CSV y Excel) | RF-006 | ⚠️ | ❌ | Back: JSON y CSV (CSV no escapa comillas); sin Excel |
+| Tabla Darwin Core por rango de fechas (CSV y Excel) | RF-006 | ✅ | ❌ | `GET /darwin-core/export?format=xlsx|csv`: 70 términos en el orden de la plantilla SiB/GBIF del jardín botánico, filtros por fecha y proyecto; inactivas solo con `specimens.status` |
+| Datos de la colección (institución, código, derechos...) | DwC | ✅ | ❌ | `GET/PUT /darwin-core/collection` (system_info "coleccion"); editar requiere `cms.edit` |
+| Importar muestras desde Darwin Core (Excel/CSV) | DwC | ✅ | ❌ | `POST /darwin-core/import` (`specimens.import`): vista previa sin escribir + importación en una transacción. Crea la taxonomía/ubicaciones/catálogos que falten (compara sin tildes ni mayúsculas), omite catálogos duplicados, recolectores sin cuenta quedan en texto |
 | Estadísticas (totales, por familia, por departamento) | RNF-004 | ⚠️ | ⚠️ | `specimensByFamily` siempre `[]` (TODO) |
 
 ### 3.8 Contenido institucional y contacto
@@ -125,7 +127,7 @@ Módulo genérico `/catalogs` (19 catálogos definidos en `back_herbario2/src/mo
 | Funcionalidad | Ref. | Back | Front | Notas |
 |---|---|---|---|---|
 | Páginas historia, datos, contacto, términos | HDUA | ✅ | ✅ | |
-| Editor CMS (solo ADMIN) | HDUA | ⚠️ | ⚠️ | Back: `PUT system-info/:key` es **público** (`@Public()` temporal). Front: un COLABORADOR entra escribiendo la URL |
+| Editor CMS (solo ADMIN) | HDUA | ✅ | ✅ | `PUT system-info/:key` requiere `cms.edit`; el front protege la ruta por permiso |
 | Buzón de sugerencias (correo al herbario) | HDUA | ✅ | ❌ | |
 
 ---
@@ -220,7 +222,11 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 - [x] Dashboard con datos reales.
 
 ### Fase D - Informes y descargas ⏳
-- [ ] Back: informe por recolector en PDF y Excel; Darwin Core en Excel; CSV bien escapado; ficha técnica en PDF.
+- [x] Back: Darwin Core en Excel y CSV (bien escapado) con las columnas de la plantilla real + datos de la colección configurables.
+- [x] Back: importador Darwin Core (vista previa + importación). El Excel real (`Base de datos Jardin Botanico Uniamazonia GIBF Colombia.xlsx`, 379 registros) queda listo para importarse; **lo carga el usuario a mano como prueba**.
+- [x] Modelo: `identifiedBy`, `dateIdentified`, `otherCollectors`; muestras ligadas al nivel taxonómico más bajo (especie, género o familia).
+- [ ] Back: informe por recolector en PDF y Excel; ficha técnica en PDF.
+- [ ] Front: importar (subir, vista previa, confirmar), exportar Darwin Core y editar datos de la colección.
 - [ ] Front: `/panel/informes` (tipo de informe, rango de fechas, formato, descarga).
 - [ ] Estadísticas con gráficas (por familia, departamento, periodo).
 
@@ -266,6 +272,7 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
 ### 2026-10-01
+- **Darwin Core (Fase D):** el Excel del jardín botánico (plantilla SiB Colombia/GBIF) se tomó como referencia. Módulo `darwin-core`: export Excel/CSV con 70 términos, datos de la colección en `system_info`, importador con vista previa (379/379 filas del Excel real importables, 0 errores; no se importó). Migraciones `add_identification_fields` (identificado por, fecha de identificación, otros recolectores) y `specimen_genus_family_level` (muestras identificadas hasta género o familia; filtros, búsqueda, uso en catálogos y export lo respetan). Permiso nuevo `specimens.import`. Formulario: "Autor del nombre", identificación (paso 2), notas de campo y otros recolectores (paso 5). Endpoints viejos `reports/darwin-core*` eliminados. 57 tests unitarios + pruebas integrales (export 15, importación 16, niveles taxonómicos 10).
 - **Usuarios (Fase C):** `UsersAdminService` + endpoints de gestión (`GET/POST /users`, `GET/PATCH/DELETE /users/:id`, `POST /users/:id/reset-password`), contraseña temporal segura, reglas de "último admin" y auto-degradación (6 tests unitarios) y prueba integral de 31 casos. `/users/collectors` ya no expone correos (solo id y nombre) y el paso 5 del formulario de muestras muestra bien los nombres. `/auth/refresh` rechaza usuarios desactivados. Front: `/panel/usuarios` con pestañas Usuarios y Permisos.
 - **Catálogos (Fase C):** módulo genérico `/catalogs` con 19 catálogos (validación en español, uso, inhabilitar, eliminar solo sin uso, duplicados → 409); página `/panel/catalogos` con pestañas por grupo, filtro por nivel superior, formulario generado desde las definiciones (mapa de vista previa en localidades). 15 tests unitarios nuevos + prueba integral. Escrituras viejas de catálogos eliminadas.
 - **Dashboard real:** endpoint `/reports/dashboard` (respeta permisos: las inactivas solo con `specimens.status`); tarjetas Muestras / Mis muestras / Sin imagen / Proyectos, últimas muestras con miniatura, últimos comentarios y acciones rápidas según permisos. Página 404 propia.

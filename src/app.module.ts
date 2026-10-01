@@ -23,6 +23,7 @@ import { CommentsModule } from './modules/comments/comments.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { CatalogsModule } from './modules/catalogs/catalogs.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { DarwinCoreModule } from './modules/darwin-core/darwin-core.module';
 import { MailModule } from './modules/mail/mail.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { InfoModule } from './modules/info/info.module';
@@ -68,6 +69,7 @@ import { InstitutionsModule } from './modules/institutions/institutions.module';
     PermissionsModule,
     CatalogsModule,
     ReportsModule,
+    DarwinCoreModule,
     FeedbackModule,
     InfoModule,
     SystemInfoModule,
