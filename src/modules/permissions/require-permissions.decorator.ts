@@ -8,4 +8,5 @@ export const PERMISSIONS_KEY = 'requiredPermissions';
  * Ej: @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
  * Las reglas finas (p. ej. "solo sus propias muestras") se validan en el servicio.
  */
-export const RequirePermissions = (...permissions: Permission[]) => SetMetadata(PERMISSIONS_KEY, permissions);
+export const RequirePermissions = (...permissions: Permission[]) =>
+  SetMetadata(PERMISSIONS_KEY, permissions);

@@ -120,22 +120,6 @@ export class SpecimensController {
     return this.specimensService.getOrigins();
   }
 
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
-  @ApiBearerAuth()
-  @Post('reference/origins')
-  @ApiOperation({
-    summary: 'Create a new origin',
-    description: 'Creates a new origin type. Requires ADMIN role.',
-  })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Origin created',
-  })
-  createOrigin(@Body('name') name: string) {
-    return this.specimensService.createOrigin(name);
-  }
-
   @Public()
   @Get('reference/conditions')
   @ApiOperation({
@@ -148,22 +132,6 @@ export class SpecimensController {
   })
   getConditions() {
     return this.specimensService.getConditions();
-  }
-
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
-  @ApiBearerAuth()
-  @Post('reference/conditions')
-  @ApiOperation({
-    summary: 'Create a new condition',
-    description: 'Creates a new condition type. Requires ADMIN role.',
-  })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Condition created',
-  })
-  createCondition(@Body('name') name: string) {
-    return this.specimensService.createCondition(name);
   }
 
   @Public()
@@ -180,22 +148,6 @@ export class SpecimensController {
     return this.specimensService.getOriginTypes();
   }
 
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
-  @ApiBearerAuth()
-  @Post('reference/origin-types')
-  @ApiOperation({
-    summary: 'Create a new origin type',
-    description: 'Creates a new origin type. Requires ADMIN role.',
-  })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Origin type created',
-  })
-  createOriginType(@Body('name') name: string) {
-    return this.specimensService.createOriginType(name);
-  }
-
   @Public()
   @Get('reference/habitats')
   @ApiOperation({
@@ -208,22 +160,6 @@ export class SpecimensController {
   })
   getHabitats() {
     return this.specimensService.getHabitats();
-  }
-
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
-  @ApiBearerAuth()
-  @Post('reference/habitats')
-  @ApiOperation({
-    summary: 'Create a new habitat',
-    description: 'Creates a new habitat type. Requires ADMIN role.',
-  })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Habitat created',
-  })
-  createHabitat(@Body('name') name: string) {
-    return this.specimensService.createHabitat(name);
   }
 
   @Public()

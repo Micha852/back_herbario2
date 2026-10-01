@@ -25,8 +25,14 @@ export class AppController {
   @SkipThrottle()
   @Get('health')
   @ApiOperation({ summary: 'Health check (API + database)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'API y base de datos funcionando' })
-  @ApiResponse({ status: HttpStatus.SERVICE_UNAVAILABLE, description: 'La base de datos no responde' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'API y base de datos funcionando',
+  })
+  @ApiResponse({
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    description: 'La base de datos no responde',
+  })
   async health(@Res({ passthrough: true }) res: Response) {
     let database: 'up' | 'down' = 'up';
     try {

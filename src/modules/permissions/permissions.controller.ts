@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Put, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ArrayUnique, IsArray, IsString } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -28,13 +37,17 @@ export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Catálogo de permisos y permisos por defecto de cada rol' })
+  @ApiOperation({
+    summary: 'Catálogo de permisos y permisos por defecto de cada rol',
+  })
   getCatalog() {
     return this.permissionsService.getCatalog();
   }
 
   @Get('users/:userId')
-  @ApiOperation({ summary: 'Permisos de un usuario (defaults del rol, ajustes y efectivos)' })
+  @ApiOperation({
+    summary: 'Permisos de un usuario (defaults del rol, ajustes y efectivos)',
+  })
   getUserPermissions(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.permissionsService.getUserPermissions(userId);
   }
@@ -46,7 +59,11 @@ export class PermissionsController {
     @Body() dto: SetPermissionsDto,
     @CurrentUser() admin: UserEntity,
   ) {
-    return this.permissionsService.setUserPermissions(userId, dto.permissions, admin.id);
+    return this.permissionsService.setUserPermissions(
+      userId,
+      dto.permissions,
+      admin.id,
+    );
   }
 
   @Delete('users/:userId')

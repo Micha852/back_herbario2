@@ -22,10 +22,15 @@ export class MailService {
     const user = this.configService.get<string>('MAIL_USER');
     const pass = this.configService.get<string>('MAIL_PASSWORD');
     const host = this.configService.get<string>('MAIL_HOST');
-    this.from = this.configService.get<string>('MAIL_FROM') || 'Herbario HUAZ <noreply@uniamazonia.edu.co>';
+    this.from =
+      this.configService.get<string>('MAIL_FROM') ||
+      'Herbario HUAZ <noreply@uniamazonia.edu.co>';
 
     if (host && user && pass) {
-      const port = parseInt(this.configService.get<string>('MAIL_PORT') || '587', 10);
+      const port = parseInt(
+        this.configService.get<string>('MAIL_PORT') || '587',
+        10,
+      );
       this.transporter = nodemailer.createTransport({
         host,
         port,
@@ -34,7 +39,9 @@ export class MailService {
       });
     } else {
       this.transporter = null;
-      this.logger.warn('SMTP sin configurar: los correos se mostrarán en consola (modo desarrollo)');
+      this.logger.warn(
+        'SMTP sin configurar: los correos se mostrarán en consola (modo desarrollo)',
+      );
     }
   }
 
@@ -42,7 +49,12 @@ export class MailService {
    * Envía un correo. Lanza error si falla, para que quien llama decida qué hacer
    * (p. ej. no cambiar la contraseña si el correo no salió).
    */
-  async sendMail(options: { to: string; subject: string; html: string; from?: string }): Promise<void> {
+  async sendMail(options: {
+    to: string;
+    subject: string;
+    html: string;
+    from?: string;
+  }): Promise<void> {
     if (!this.transporter) {
       if (this.configService.get<string>('NODE_ENV') === 'production') {
         throw new Error('SMTP no configurado');
@@ -76,7 +88,9 @@ export class MailService {
       });
       this.logger.log(`Email sent to ${options.to}`);
     } catch (error) {
-      this.logger.error(`Failed to send email to ${options.to}: ${error.message}`);
+      this.logger.error(
+        `Failed to send email to ${options.to}: ${error.message}`,
+      );
       throw error;
     }
   }

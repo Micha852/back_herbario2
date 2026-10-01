@@ -18,11 +18,15 @@ export interface PermissionOverride {
 }
 
 function asRole(roleName: string | undefined | null): UserRole | null {
-  return Object.values(UserRole).includes(roleName as UserRole) ? (roleName as UserRole) : null;
+  return Object.values(UserRole).includes(roleName as UserRole)
+    ? (roleName as UserRole)
+    : null;
 }
 
 /** Permisos por defecto del rol (vacío si el rol no existe) */
-export function roleDefaults(roleName: string | undefined | null): Permission[] {
+export function roleDefaults(
+  roleName: string | undefined | null,
+): Permission[] {
   const role = asRole(roleName);
   return role ? [...ROLE_DEFAULTS[role]] : [];
 }
@@ -90,6 +94,9 @@ export function canEditSpecimen(
   );
 }
 
-export function hasPermission(permissions: readonly string[] | undefined, permission: Permission): boolean {
+export function hasPermission(
+  permissions: readonly string[] | undefined,
+  permission: Permission,
+): boolean {
   return !!permissions?.includes(permission);
 }

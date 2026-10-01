@@ -25,20 +25,33 @@ describe('PermissionsGuard', () => {
   });
 
   it('deja pasar si el usuario tiene alguno de los permisos exigidos', () => {
-    requireThese([PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN]);
-    expect(guard.canActivate(contextWith({ permissions: [PERMISSIONS.SPECIMENS_EDIT_OWN] }))).toBe(true);
+    requireThese([
+      PERMISSIONS.SPECIMENS_EDIT_ANY,
+      PERMISSIONS.SPECIMENS_EDIT_OWN,
+    ]);
+    expect(
+      guard.canActivate(
+        contextWith({ permissions: [PERMISSIONS.SPECIMENS_EDIT_OWN] }),
+      ),
+    ).toBe(true);
   });
 
   it('bloquea con 403 si no tiene ninguno', () => {
     requireThese([PERMISSIONS.CMS_EDIT]);
-    expect(() => guard.canActivate(contextWith({ permissions: [PERMISSIONS.SPECIMENS_CREATE] }))).toThrow(
-      ForbiddenException,
-    );
+    expect(() =>
+      guard.canActivate(
+        contextWith({ permissions: [PERMISSIONS.SPECIMENS_CREATE] }),
+      ),
+    ).toThrow(ForbiddenException);
   });
 
   it('bloquea si no hay usuario o no trae permisos', () => {
     requireThese([PERMISSIONS.CMS_EDIT]);
-    expect(() => guard.canActivate(contextWith(undefined))).toThrow(ForbiddenException);
-    expect(() => guard.canActivate(contextWith({}))).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(contextWith(undefined))).toThrow(
+      ForbiddenException,
+    );
+    expect(() => guard.canActivate(contextWith({}))).toThrow(
+      ForbiddenException,
+    );
   });
 });

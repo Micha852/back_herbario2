@@ -49,7 +49,8 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
     key: PERMISSIONS.SPECIMENS_EDIT_OWN,
     group: 'Muestras',
     label: 'Editar sus propias muestras',
-    description: 'Editar datos, recolectores e imágenes de las muestras que el usuario registró.',
+    description:
+      'Editar datos, recolectores e imágenes de las muestras que el usuario registró.',
   },
   {
     key: PERMISSIONS.SPECIMENS_EDIT_ANY,
@@ -61,31 +62,36 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
     key: PERMISSIONS.SPECIMENS_STATUS,
     group: 'Muestras',
     label: 'Activar / inactivar muestras',
-    description: 'Ocultar o publicar muestras y ver las inactivas en la galería y el panel.',
+    description:
+      'Ocultar o publicar muestras y ver las inactivas en la galería y el panel.',
   },
   {
     key: PERMISSIONS.SPECIMENS_DELETE,
     group: 'Muestras',
     label: 'Eliminar muestras',
-    description: 'Borrar muestras de forma permanente (con sus imágenes y comentarios).',
+    description:
+      'Borrar muestras de forma permanente (con sus imágenes y comentarios).',
   },
   {
     key: PERMISSIONS.CATALOGS_MANAGE,
     group: 'Catálogos',
     label: 'Gestionar catálogos',
-    description: 'Crear y editar taxonomía, ubicaciones, proyectos y demás parámetros.',
+    description:
+      'Crear y editar taxonomía, ubicaciones, proyectos y demás parámetros.',
   },
   {
     key: PERMISSIONS.CATALOGS_DELETE,
     group: 'Catálogos',
     label: 'Inhabilitar / eliminar en catálogos',
-    description: 'Inhabilitar elementos de los catálogos o eliminarlos si no están en uso.',
+    description:
+      'Inhabilitar elementos de los catálogos o eliminarlos si no están en uso.',
   },
   {
     key: PERMISSIONS.REPORTS_GENERATE,
     group: 'Informes',
     label: 'Generar informes',
-    description: 'Generar y descargar informes (por recolector, Darwin Core...).',
+    description:
+      'Generar y descargar informes (por recolector, Darwin Core...).',
   },
   {
     key: PERMISSIONS.CMS_EDIT,

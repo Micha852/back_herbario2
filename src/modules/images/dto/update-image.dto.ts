@@ -1,6 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 /** Tipos de imagen permitidos (el front muestra sus etiquetas en español) */
 export const IMAGE_TYPES = [
@@ -34,7 +42,8 @@ export class UpdateImageDto {
   imageType?: ImageType;
 
   @ApiPropertyOptional({
-    description: 'false = inhabilitada: se oculta al público pero se conserva el archivo',
+    description:
+      'false = inhabilitada: se oculta al público pero se conserva el archivo',
   })
   @IsOptional()
   @IsBoolean()

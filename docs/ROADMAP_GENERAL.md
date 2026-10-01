@@ -94,13 +94,15 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 
 ### 3.5 Panel: catálogos y parámetros
 
+Módulo genérico `/catalogs` (19 catálogos definidos en `back_herbario2/src/modules/catalogs/catalog-definitions.ts`): listar con conteo de uso, crear/editar (`catalogs.manage`), inhabilitar y eliminar solo si no está en uso (`catalogs.delete`). Inhabilitar lo saca de los formularios. Los endpoints de escritura viejos de /taxonomy, /locations, /projects y /specimens/reference se eliminaron (quedan sus lecturas).
+
 | Funcionalidad | Ref. | Back | Front | Notas |
 |---|---|---|---|---|
-| Taxonomía (División → Clase → Orden → Familia → Género → Especie) | RF-001 | ⚠️ | ❌ | Back: `create` no acepta el padre (`divisionId`, `classId`…) y `species` falla (usa `epithet`, no `name`). Jerarquía solo existe por seed |
-| Morfología (venación, forma, margen) | RF-002 | ✅ | ❌ | |
-| Referencias (origen, tipo de origen, condición, hábitat) | HDUA | ⚠️ | ❌ | Solo GET y POST |
-| Ubicaciones (departamento → municipio → tipo → ubicación) | HDUA | ✅ | ❌ | |
-| Proyectos y protocolos de muestreo | HDUA | ✅ | ❌ | |
+| Taxonomía (División → Clase → Orden → Familia → Género → Especie) | RF-001 | ✅ | ✅ | `/panel/catalogos`: jerarquía con padre obligatorio; la especie calcula su nombre completo (y se actualiza si se renombra el género) |
+| Morfología (venación, forma, margen) | RF-002 | ✅ | ✅ | |
+| Referencias (origen, tipo de origen, condición, hábitat) | HDUA | ✅ | ✅ | |
+| Ubicaciones (departamento → municipio → tipo → ubicación) | HDUA | ✅ | ✅ | Localidades con coordenadas y vista previa en mapa |
+| Proyectos y protocolos de muestreo | HDUA | ✅ | ✅ | |
 
 ### 3.6 Panel: usuarios
 
@@ -168,7 +170,7 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 - [x] `GET /images/:id?version=...` respondía 400 (`version` no estaba en `TransformImageDto`).
 - [x] Filtros taxonómicos de `GET /specimens` (anidar por `species.genus.family…`).
 - [x] Añadir filtros `departmentId`, `municipalityId`, `startDate`, `endDate`, `search` y `sort`.
-- [ ] Taxonomía: DTOs con padre + `epithet` en especie (→ Fase C, catálogos).
+- [x] Taxonomía: padre obligatorio y epíteto en especie (módulo `/catalogs`).
 - [x] `PATCH /specimens/:id` con `UpdateSpecimenDto` real (`PartialType`), y `createdBy`/`updatedBy` registrados en crear y editar.
 - [x] `PATCH specimens/:id/image` duplicado eliminado.
 - [x] Contador de catálogo atómico (`upsert` + `increment`) y salta números ya usados.
@@ -188,7 +190,7 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 - [ ] Assets vacíos de plantilla en `public/` y `find-cascade.ps1` suelto.
 
 ### Ambos
-- [ ] Tests: back con 19 tests unitarios (lógica de permisos y guard); faltan servicios y e2e. Front sin runner.
+- [ ] Tests: back con 34 tests unitarios (permisos, guard, validación de catálogos); faltan servicios y e2e. Front sin runner.
 - [ ] Sin Docker, CI ni health check.
 
 ---
@@ -213,7 +215,7 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 - [x] Editar muestra (`/panel/muestras/[id]/editar`), reutilizando el asistente (`components/panel/specimen-form/specimen-form.tsx`).
 - [x] Imágenes múltiples: subida al crear + gestión en edición (principal, tipo, descripción, quitar).
 - [x] Capa de permisos (back + front): catálogo, guard, ajustes por usuario, endpoints migrados de roles a permisos. Ver 3.9.
-- [ ] Catálogos: taxonomía, morfología, referencias, ubicaciones, proyectos/protocolos.
+- [x] Catálogos: taxonomía, morfología, referencias, ubicaciones, proyectos/protocolos (`/panel/catalogos`).
 - [ ] Usuarios (`/panel/usuarios`): listar, rol, recolector, estado + pestaña "Permisos" con switches por colaborador.
 - [x] Dashboard con datos reales.
 
@@ -264,6 +266,7 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
 ### 2026-10-01
+- **Catálogos (Fase C):** módulo genérico `/catalogs` con 19 catálogos (validación en español, uso, inhabilitar, eliminar solo sin uso, duplicados → 409); página `/panel/catalogos` con pestañas por grupo, filtro por nivel superior, formulario generado desde las definiciones (mapa de vista previa en localidades). 15 tests unitarios nuevos + prueba integral. Escrituras viejas de catálogos eliminadas.
 - **Dashboard real:** endpoint `/reports/dashboard` (respeta permisos: las inactivas solo con `specimens.status`); tarjetas Muestras / Mis muestras / Sin imagen / Proyectos, últimas muestras con miniatura, últimos comentarios y acciones rápidas según permisos. Página 404 propia.
 - **Roles y permisos (D8):** tabla `user_permissions` (migración `20261001154723_add_user_permissions`), catálogo de 10 permisos, `@RequirePermissions` + `PermissionsGuard`, endpoints de gestión `/permissions` (solo ADMIN). ~60 endpoints migrados de `@Roles` a permisos. Colaborador: edita solo sus muestras; no cambia estado ni ve inactivas; no CMS ni moderación. Darwin Core deja de ser público (`reports.generate`).
 - **Front con permisos:** `usePermissions()`; sidebar, listado (editar/eliminar/nueva/filtro de estado), página de editar (aviso si no es suya, interruptor de estado solo con permiso) y moderación de comentarios según permisos. El perfil refresca los permisos al cargar la app.

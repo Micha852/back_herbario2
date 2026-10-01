@@ -1,14 +1,9 @@
 import {
   Controller,
   Get,
-  Post,
-  Body,
-  Patch,
   Param,
-  Delete,
   Query,
   HttpStatus,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,17 +11,9 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
-  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { LocationsService } from './locations.service';
-import { CreateDepartmentDto } from './dto/create-department.dto';
-import { CreateMunicipalityDto } from './dto/create-municipality.dto';
-import { CreateLocationDto } from './dto/create-location.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Public } from '../auth/decorators/public.decorator';
-import { PermissionsGuard } from '../permissions/permissions.guard';
-import { RequirePermissions } from '../permissions/require-permissions.decorator';
-import { PERMISSIONS } from '../permissions/permissions.constants';
 
 @ApiTags('Locations')
 @Controller('locations')
@@ -48,30 +35,6 @@ export class LocationsController {
     return this.locationsService.findAllDepartments();
   }
 
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
-  @ApiBearerAuth()
-  @Post('departments')
-  @ApiOperation({
-    summary: 'Create a new department',
-    description: 'Creates a new department. Requires ADMIN role.',
-  })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Department created successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.CONFLICT,
-    description: 'Department name already exists',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  createDepartment(@Body() dto: CreateDepartmentDto) {
-    return this.locationsService.createDepartment(dto);
-  }
-
   @Public()
   @Get('departments/:id')
   @ApiOperation({
@@ -89,59 +52,6 @@ export class LocationsController {
   })
   getDepartment(@Param('id') id: string) {
     return this.locationsService.findDepartmentById(id);
-  }
-
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
-  @ApiBearerAuth()
-  @Patch('departments/:id')
-  @ApiOperation({
-    summary: 'Update a department',
-    description: 'Updates department information. Requires ADMIN role.',
-  })
-  @ApiParam({ name: 'id', description: 'Department UUID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Department updated successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Department not found',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  updateDepartment(
-    @Param('id') id: string,
-    @Body() dto: Partial<CreateDepartmentDto>,
-  ) {
-    return this.locationsService.updateDepartment(id, dto);
-  }
-
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
-  @ApiBearerAuth()
-  @Delete('departments/:id')
-  @ApiOperation({
-    summary: 'Delete a department',
-    description: 'Soft deletes a department. Requires ADMIN role.',
-  })
-  @ApiParam({ name: 'id', description: 'Department UUID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Department deleted successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Department not found',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  removeDepartment(@Param('id') id: string) {
-    return this.locationsService.removeDepartment(id);
   }
 
   // ============ MUNICIPALITIES ============
@@ -164,30 +74,6 @@ export class LocationsController {
     return this.locationsService.findAllMunicipalities(departmentId);
   }
 
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
-  @ApiBearerAuth()
-  @Post('municipalities')
-  @ApiOperation({
-    summary: 'Create a new municipality',
-    description: 'Creates a new municipality within a department. Requires ADMIN role.',
-  })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Municipality created successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.CONFLICT,
-    description: 'Municipality name already exists in this department',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  createMunicipality(@Body() dto: CreateMunicipalityDto) {
-    return this.locationsService.createMunicipality(dto);
-  }
-
   @Public()
   @Get('municipalities/:id')
   @ApiOperation({
@@ -207,59 +93,6 @@ export class LocationsController {
     return this.locationsService.findMunicipalityById(id);
   }
 
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
-  @ApiBearerAuth()
-  @Patch('municipalities/:id')
-  @ApiOperation({
-    summary: 'Update a municipality',
-    description: 'Updates municipality information. Requires ADMIN role.',
-  })
-  @ApiParam({ name: 'id', description: 'Municipality UUID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Municipality updated successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Municipality not found',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  updateMunicipality(
-    @Param('id') id: string,
-    @Body() dto: Partial<CreateMunicipalityDto>,
-  ) {
-    return this.locationsService.updateMunicipality(id, dto);
-  }
-
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
-  @ApiBearerAuth()
-  @Delete('municipalities/:id')
-  @ApiOperation({
-    summary: 'Delete a municipality',
-    description: 'Soft deletes a municipality. Requires ADMIN role.',
-  })
-  @ApiParam({ name: 'id', description: 'Municipality UUID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Municipality deleted successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Municipality not found',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  removeMunicipality(@Param('id') id: string) {
-    return this.locationsService.removeMunicipality(id);
-  }
-
   // ============ LOCATION TYPES ============
   @Public()
   @Get('types')
@@ -273,30 +106,6 @@ export class LocationsController {
   })
   getLocationTypes() {
     return this.locationsService.findAllLocationTypes();
-  }
-
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
-  @ApiBearerAuth()
-  @Post('types')
-  @ApiOperation({
-    summary: 'Create a new location type',
-    description: 'Creates a new location type. Requires ADMIN role.',
-  })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Location type created successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.CONFLICT,
-    description: 'Location type name already exists',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  createLocationType(@Body('name') name: string) {
-    return this.locationsService.createLocationType(name);
   }
 
   // ============ LOCATIONS ============
@@ -319,26 +128,6 @@ export class LocationsController {
     return this.locationsService.findAllLocations(municipalityId);
   }
 
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
-  @ApiBearerAuth()
-  @Post()
-  @ApiOperation({
-    summary: 'Create a new location',
-    description: 'Creates a new specific collection location. Requires ADMIN or COLLABORATOR role.',
-  })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Location created successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  createLocation(@Body() dto: CreateLocationDto) {
-    return this.locationsService.createLocation(dto);
-  }
-
   @Public()
   @Get(':id')
   @ApiOperation({
@@ -358,56 +147,4 @@ export class LocationsController {
     return this.locationsService.findLocationById(id);
   }
 
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.CATALOGS_MANAGE)
-  @ApiBearerAuth()
-  @Patch(':id')
-  @ApiOperation({
-    summary: 'Update a location',
-    description: 'Updates location information. Requires ADMIN or COLLABORATOR role.',
-  })
-  @ApiParam({ name: 'id', description: 'Location UUID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Location updated successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Location not found',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  updateLocation(
-    @Param('id') id: string,
-    @Body() dto: Partial<CreateLocationDto>,
-  ) {
-    return this.locationsService.updateLocation(id, dto);
-  }
-
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.CATALOGS_DELETE)
-  @ApiBearerAuth()
-  @Delete(':id')
-  @ApiOperation({
-    summary: 'Delete a location',
-    description: 'Soft deletes a location. Requires ADMIN role.',
-  })
-  @ApiParam({ name: 'id', description: 'Location UUID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Location deleted successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Location not found',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Not authenticated',
-  })
-  removeLocation(@Param('id') id: string) {
-    return this.locationsService.removeLocation(id);
-  }
 }

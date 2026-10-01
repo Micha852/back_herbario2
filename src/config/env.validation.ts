@@ -9,7 +9,9 @@ const REQUIRED = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'] as const;
 /** Valores que delatan un secreto de ejemplo */
 const PLACEHOLDER = /change|your|example|secret-key|refresh-secret/i;
 
-export function validateEnv(config: Record<string, unknown>): Record<string, unknown> {
+export function validateEnv(
+  config: Record<string, unknown>,
+): Record<string, unknown> {
   const errors: string[] = [];
   const isProduction = config.NODE_ENV === 'production';
 
@@ -32,18 +34,22 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
       ['JWT_SECRET', jwtSecret],
       ['JWT_REFRESH_SECRET', refreshSecret],
     ]) {
-      if (value.length < 32) errors.push(`${key} debe tener al menos 32 caracteres en producción`);
-      if (PLACEHOLDER.test(value)) errors.push(`${key} parece un valor de ejemplo: genera uno aleatorio`);
+      if (value.length < 32)
+        errors.push(`${key} debe tener al menos 32 caracteres en producción`);
+      if (PLACEHOLDER.test(value))
+        errors.push(`${key} parece un valor de ejemplo: genera uno aleatorio`);
     }
     if (!config.MAIL_HOST || !config.MAIL_USER || !config.MAIL_PASSWORD) {
-      errors.push('En producción se requieren MAIL_HOST, MAIL_USER y MAIL_PASSWORD (recuperación de contraseña)');
+      errors.push(
+        'En producción se requieren MAIL_HOST, MAIL_USER y MAIL_PASSWORD (recuperación de contraseña)',
+      );
     }
   }
 
   if (errors.length > 0) {
     throw new Error(
       `Configuración inválida (.env):\n  - ${errors.join('\n  - ')}\n` +
-        'Revisa .env.example. Para generar un secreto: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'base64url\'))"',
+        "Revisa .env.example. Para generar un secreto: node -e \"console.log(require('crypto').randomBytes(48).toString('base64url'))\"",
     );
   }
 
