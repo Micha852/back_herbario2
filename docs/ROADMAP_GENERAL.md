@@ -117,9 +117,9 @@ Módulo genérico `/catalogs` (19 catálogos definidos en `back_herbario2/src/mo
 | Funcionalidad | Ref. | Back | Front | Notas |
 |---|---|---|---|---|
 | Informe "muestras por recolector" (PDF y Excel) | CU-029…032, RF-006 | ⚠️ | ❌ | Back solo devuelve JSON |
-| Tabla Darwin Core por rango de fechas (CSV y Excel) | RF-006 | ✅ | ❌ | `GET /darwin-core/export?format=xlsx|csv`: 70 términos en el orden de la plantilla SiB/GBIF del jardín botánico, filtros por fecha y proyecto; inactivas solo con `specimens.status` |
-| Datos de la colección (institución, código, derechos...) | DwC | ✅ | ❌ | `GET/PUT /darwin-core/collection` (system_info "coleccion"); editar requiere `cms.edit` |
-| Importar muestras desde Darwin Core (Excel/CSV) | DwC | ✅ | ❌ | `POST /darwin-core/import` (`specimens.import`): vista previa sin escribir + importación en una transacción. Crea la taxonomía/ubicaciones/catálogos que falten (compara sin tildes ni mayúsculas), omite catálogos duplicados, recolectores sin cuenta quedan en texto |
+| Tabla Darwin Core por rango de fechas (CSV y Excel) | RF-006 | ✅ | ✅ | `GET /darwin-core/export?format=xlsx|csv`: 70 términos en el orden de la plantilla SiB/GBIF del jardín botánico, filtros por fecha y proyecto; inactivas solo con `specimens.status` |
+| Datos de la colección (institución, código, derechos...) | DwC | ✅ | ✅ | `GET/PUT /darwin-core/collection` (system_info "coleccion"); editar requiere `cms.edit` |
+| Importar muestras desde Darwin Core (Excel/CSV) | DwC | ✅ | ✅ | `POST /darwin-core/import` (`specimens.import`): vista previa sin escribir + importación en una transacción. Crea la taxonomía/ubicaciones/catálogos que falten (compara sin tildes ni mayúsculas), omite catálogos duplicados, recolectores sin cuenta quedan en texto |
 | Estadísticas (totales, por familia, por departamento) | RNF-004 | ⚠️ | ⚠️ | `specimensByFamily` siempre `[]` (TODO) |
 
 ### 3.8 Contenido institucional y contacto
@@ -226,7 +226,7 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 - [x] Back: importador Darwin Core (vista previa + importación). El Excel real (`Base de datos Jardin Botanico Uniamazonia GIBF Colombia.xlsx`, 379 registros) queda listo para importarse; **lo carga el usuario a mano como prueba**.
 - [x] Modelo: `identifiedBy`, `dateIdentified`, `otherCollectors`; muestras ligadas al nivel taxonómico más bajo (especie, género o familia).
 - [ ] Back: informe por recolector en PDF y Excel; ficha técnica en PDF.
-- [ ] Front: importar (subir, vista previa, confirmar), exportar Darwin Core y editar datos de la colección.
+- [x] Front: `/panel/informes` (exportar Darwin Core con filtros + datos de la colección) y `/panel/muestras/importar` (subir, vista previa, confirmar).
 - [ ] Front: `/panel/informes` (tipo de informe, rango de fechas, formato, descarga).
 - [ ] Estadísticas con gráficas (por familia, departamento, periodo).
 
@@ -270,6 +270,9 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 ## 8. Bitácora
 
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
+
+### 2026-10-02
+- **Front Darwin Core:** `/panel/informes` con exportación (formato, rango de fechas, proyecto, inactivas según permiso) y datos de la colección (editables con `cms.edit`); `/panel/muestras/importar` con arrastrar y soltar, vista previa (resumen, catálogos nuevos, recolectores, detalle por fila filtrable) y confirmación con overlay. Botón "Importar" en Muestras (`specimens.import`).
 
 ### 2026-10-01
 - **Darwin Core (Fase D):** el Excel del jardín botánico (plantilla SiB Colombia/GBIF) se tomó como referencia. Módulo `darwin-core`: export Excel/CSV con 70 términos, datos de la colección en `system_info`, importador con vista previa (379/379 filas del Excel real importables, 0 errores; no se importó). Migraciones `add_identification_fields` (identificado por, fecha de identificación, otros recolectores) y `specimen_genus_family_level` (muestras identificadas hasta género o familia; filtros, búsqueda, uso en catálogos y export lo respetan). Permiso nuevo `specimens.import`. Formulario: "Autor del nombre", identificación (paso 2), notas de campo y otros recolectores (paso 5). Endpoints viejos `reports/darwin-core*` eliminados. 57 tests unitarios + pruebas integrales (export 15, importación 16, niveles taxonómicos 10).
