@@ -116,11 +116,12 @@ Módulo genérico `/catalogs` (19 catálogos definidos en `back_herbario2/src/mo
 
 | Funcionalidad | Ref. | Back | Front | Notas |
 |---|---|---|---|---|
-| Informe "muestras por recolector" (PDF y Excel) | CU-029…032, RF-006 | ⚠️ | ❌ | Back solo devuelve JSON |
+| Informe "muestras por recolector" (PDF y Excel) | CU-029…032, RF-006 | ✅ | ✅ | Incluye recolectores sin cuenta (texto importado); filtro por fechas |
+| Ficha técnica de la muestra (PDF) | HDUA | ✅ | ✅ | Pública para muestras activas; botón en la ficha y en el listado del panel |
 | Tabla Darwin Core por rango de fechas (CSV y Excel) | RF-006 | ✅ | ✅ | `GET /darwin-core/export?format=xlsx|csv`: 70 términos en el orden de la plantilla SiB/GBIF del jardín botánico, filtros por fecha y proyecto; inactivas solo con `specimens.status` |
 | Datos de la colección (institución, código, derechos...) | DwC | ✅ | ✅ | `GET/PUT /darwin-core/collection` (system_info "coleccion"); editar requiere `cms.edit` |
 | Importar muestras desde Darwin Core (Excel/CSV) | DwC | ✅ | ✅ | `POST /darwin-core/import` (`specimens.import`): vista previa sin escribir + importación en una transacción. Crea la taxonomía/ubicaciones/catálogos que falten (compara sin tildes ni mayúsculas), omite catálogos duplicados, recolectores sin cuenta quedan en texto |
-| Estadísticas (totales, por familia, por departamento) | RNF-004 | ⚠️ | ⚠️ | `specimensByFamily` siempre `[]` (TODO) |
+| Estadísticas (totales, por familia, por departamento) | RNF-004 | ✅ | ✅ | `GET /reports/statistics`: familias, órdenes, departamentos, años y nivel de identificación; gráficas en Informes |
 
 ### 3.8 Contenido institucional y contacto
 
@@ -221,14 +222,14 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 - [x] Usuarios (`/panel/usuarios`): listar, crear, editar, rol, recolector, estado, restablecer contraseña + pestaña "Permisos" con switches por colaborador.
 - [x] Dashboard con datos reales.
 
-### Fase D - Informes y descargas ⏳
+### Fase D - Informes y descargas ✅
 - [x] Back: Darwin Core en Excel y CSV (bien escapado) con las columnas de la plantilla real + datos de la colección configurables.
 - [x] Back: importador Darwin Core (vista previa + importación). El Excel real (`Base de datos Jardin Botanico Uniamazonia GIBF Colombia.xlsx`, 379 registros) queda listo para importarse; **lo carga el usuario a mano como prueba**.
 - [x] Modelo: `identifiedBy`, `dateIdentified`, `otherCollectors`; muestras ligadas al nivel taxonómico más bajo (especie, género o familia).
-- [ ] Back: informe por recolector en PDF y Excel; ficha técnica en PDF.
+- [x] Back: informe por recolector en PDF y Excel; ficha técnica en PDF (pdfkit).
 - [x] Front: `/panel/informes` (exportar Darwin Core con filtros + datos de la colección) y `/panel/muestras/importar` (subir, vista previa, confirmar).
 - [ ] Front: `/panel/informes` (tipo de informe, rango de fechas, formato, descarga).
-- [ ] Estadísticas con gráficas (por familia, departamento, periodo).
+- [x] Estadísticas con gráficas (por familia, orden, departamento, año y nivel de identificación).
 
 ### Fase E - Calidad y despliegue ⏳
 - [ ] Tests: unitarios de servicios críticos (specimens, auth) y e2e de los flujos principales. ✅ Permisos (19 tests).
@@ -272,6 +273,7 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
 ### 2026-10-02
+- **Fase D cerrada:** ficha técnica en PDF (`GET /reports/specimens/:id/sheet`, imagen principal, taxonomía, identificación, recolección, ubicación, características), informe por recolector PDF/Excel (`GET /reports/collectors` + `/reports/collector-report`, usuarios y recolectores en texto), estadísticas reales (`/reports/statistics`). Front: Informes con indicadores y 5 gráficas de barras (con vista de tabla), tarjeta de informe por recolector; botón "Ficha en PDF" en la ficha pública y en el listado. Se quitó el viejo `GET /reports/collector/:id`. 59 tests unitarios.
 - **Filtros del panel de muestras (6):** estado, desde, hasta, imágenes (con/sin), origen (manual/importada) y nivel de identificación (especie/solo género/solo familia/sin taxonomía). Campo nuevo `Specimen.source` (migración `specimen_source`, marca como IMPORT las 379 importadas).
 - **Primera importación real:** el usuario importó el Excel del jardín botánico desde el panel: 379 muestras, 614 elementos nuevos en catálogos, 0 errores. Verificado contra el Excel (taxonomía en cascada, fechas, adultos/juveniles, elevación, ubicación, recolectores). El importador ahora reutiliza géneros por nombre y avisa cuando un taxón existente tiene otra clasificación (Magnoliopsida/Liliopsida/Polypodiopsida bajo divisiones viejas vs Tracheophyta). Regla global de cursor para botones (Tailwind 4).
 - **Front Darwin Core:** `/panel/informes` con exportación (formato, rango de fechas, proyecto, inactivas según permiso) y datos de la colección (editables con `cms.edit`); `/panel/muestras/importar` con arrastrar y soltar, vista previa (resumen, catálogos nuevos, recolectores, detalle por fila filtrable) y confirmación con overlay. Botón "Importar" en Muestras (`specimens.import`).

@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { publicUserSelect } from '../../common/prisma/user-select';
-import { taxonomyInclude } from '../../common/prisma/taxonomy';
 import { PrismaService } from '../../database/prisma.service';
 import { Prisma } from '@prisma/client';
 import { PERMISSIONS } from '../permissions/permissions.constants';
@@ -8,16 +7,23 @@ import { hasPermission } from '../permissions/permissions.logic';
 
 @Injectable()
 export class ReportsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   /**
    * Resumen para el dashboard del panel, según lo que el usuario puede ver:
    * las muestras inactivas solo cuentan con el permiso specimens.status.
    */
   async getDashboard(user: { id: string; permissions?: string[] }) {
-    const canSeeInactive = hasPermission(user.permissions, PERMISSIONS.SPECIMENS_STATUS);
-    const visible: Prisma.SpecimenWhereInput = canSeeInactive ? {} : { isActive: true };
-    const visibleComments: Prisma.CommentWhereInput = canSeeInactive ? {} : { specimen: { isActive: true } };
+    const canSeeInactive = hasPermission(
+      user.permissions,
+      PERMISSIONS.SPECIMENS_STATUS,
+    );
+    const visible: Prisma.SpecimenWhereInput = canSeeInactive
+      ? {}
+      : { isActive: true };
+    const visibleComments: Prisma.CommentWhereInput = canSeeInactive
+      ? {}
+      : { specimen: { isActive: true } };
 
     const [
       total,
@@ -33,8 +39,12 @@ export class ReportsService {
     ] = await Promise.all([
       this.prisma.specimen.count({ where: visible }),
       this.prisma.specimen.count({ where: { isActive: true } }),
-      canSeeInactive ? this.prisma.specimen.count({ where: { isActive: false } }) : Promise.resolve(null),
-      this.prisma.specimen.count({ where: { ...visible, createdById: user.id } }),
+      canSeeInactive
+        ? this.prisma.specimen.count({ where: { isActive: false } })
+        : Promise.resolve(null),
+      this.prisma.specimen.count({
+        where: { ...visible, createdById: user.id },
+      }),
       this.prisma.specimen.count({
         where: { ...visible, images: { none: { isActive: true } } },
       }),
@@ -89,111 +99,119 @@ export class ReportsService {
   }
 
   /**
-   * Get specimens by collector (for reports)
-   */
-  async getSpecimensByCollector(collectorId: string) {
-    const collector = await this.prisma.user.findUnique({
-      where: { id: collectorId },
-      select: { ...publicUserSelect, email: true, isCollector: true },
-    });
-
-    const specimens = await this.prisma.specimen.findMany({
-      where: {
-        isActive: true,
-        collectors: { some: { userId: collectorId } },
-      },
-      include: {
-        ...taxonomyInclude,
-        location: {
-          include: {
-            municipality: { include: { department: true } },
-          },
-        },
-        project: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return {
-      collector,
-      specimens,
-      totalSpecimens: specimens.length,
-    };
-  }
-
-  /**
-   * Get statistics for dashboard
+   * Estadísticas públicas de la colección (solo muestras activas).
+   * Se calculan en memoria: la jerarquía puede salir de especie, género o familia.
    */
   async getStatistics() {
-    const [
-      totalSpecimens,
-      totalUsers,
-      totalProjects,
-      specimensByFamily,
-      specimensByDepartment,
-      recentSpecimens,
-    ] = await Promise.all([
-      this.prisma.specimen.count({ where: { isActive: true } }),
-      this.prisma.user.count({ where: { isActive: true } }),
-      this.prisma.project.count({ where: { isActive: true } }),
-      // TODO: Fix this query - Specimen doesn't have direct familyId
-      // this.prisma.specimen.groupBy({
-      //   by: ['familyId'],
-      //   where: { isActive: true, familyId: { not: null } },
-      //   _count: true,
-      //   orderBy: { _count: { familyId: 'desc' } },
-      //   take: 10,
-      // }),
-      Promise.resolve([]),
-      this.prisma.specimen.findMany({
-        where: {
-          isActive: true,
-          location: { isNot: null },
-        },
-        select: {
-          location: {
-            select: {
-              municipality: {
-                select: {
-                  department: { select: { name: true } },
-                },
-              },
-            },
-          },
-        },
-      }),
+    const named = { select: { name: true } } as const;
+    const orderChain = { select: { name: true } } as const;
+    const familyChain = { select: { name: true, order: orderChain } } as const;
+    const genusChain = { select: { name: true, family: familyChain } } as const;
+
+    const [specimens, collectorUsers, withImages] = await Promise.all([
       this.prisma.specimen.findMany({
         where: { isActive: true },
-        take: 5,
-        orderBy: { createdAt: 'desc' },
         select: {
-          id: true,
-          scientificName: true,
-          commonName: true,
-          createdAt: true,
+          speciesId: true,
+          collectionYear: true,
+          collectionDate: true,
+          source: true,
+          otherCollectors: true,
+          species: { select: { genus: genusChain } },
+          genus: genusChain,
+          family: familyChain,
+          location: {
+            select: { municipality: { select: { department: named } } },
+          },
+          collectors: { select: { userId: true } },
         },
+      }),
+      this.prisma.user.count({ where: { isActive: true, isCollector: true } }),
+      this.prisma.specimen.count({
+        where: { isActive: true, images: { some: { isActive: true } } },
       }),
     ]);
 
-    // Process department counts
-    const departmentCounts: Record<string, number> = {};
-    specimensByDepartment.forEach((s) => {
-      const dept = s.location?.municipality?.department?.name;
-      if (dept) {
-        departmentCounts[dept] = (departmentCounts[dept] || 0) + 1;
-      }
-    });
+    const tally = () => new Map<string, number>();
+    const add = (map: Map<string, number>, key: string | null | undefined) => {
+      if (key) map.set(key, (map.get(key) ?? 0) + 1);
+    };
+    const top = (map: Map<string, number>, limit?: number) => {
+      const list = [...map]
+        .map(([name, count]) => ({ name, count }))
+        .sort(
+          (a, b) => b.count - a.count || a.name.localeCompare(b.name, 'es'),
+        );
+      if (!limit || list.length <= limit) return list;
+      const rest = list.slice(limit).reduce((sum, item) => sum + item.count, 0);
+      return [...list.slice(0, limit), { name: 'Otras', count: rest }];
+    };
+
+    const byFamily = tally();
+    const byOrder = tally();
+    const byDepartment = tally();
+    const byYear = tally();
+    const levels = {
+      Especie: 0,
+      'Solo género': 0,
+      'Solo familia': 0,
+      'Sin taxonomía': 0,
+    };
+    const families = new Set<string>();
+    const genera = new Set<string>();
+    const species = new Set<string>();
+    const textCollectors = new Set<string>();
+    const userCollectors = new Set<string>();
+
+    for (const s of specimens) {
+      const genus = s.species?.genus ?? s.genus;
+      const family = genus?.family ?? s.family;
+      add(byFamily, family?.name);
+      add(byOrder, family?.order?.name);
+      add(
+        byDepartment,
+        s.location?.municipality?.department?.name ?? 'Sin ubicación',
+      );
+      const year = s.collectionDate?.getUTCFullYear() ?? s.collectionYear;
+      add(byYear, year ? String(year) : null);
+      if (family) families.add(family.name);
+      if (genus) genera.add(genus.name);
+      if (s.speciesId) species.add(s.speciesId);
+      levels[
+        s.species
+          ? 'Especie'
+          : s.genus
+            ? 'Solo género'
+            : s.family
+              ? 'Solo familia'
+              : 'Sin taxonomía'
+      ]++;
+      s.collectors.forEach((c) => userCollectors.add(c.userId));
+      (s.otherCollectors ?? '')
+        .split('|')
+        .forEach((n) => n.trim() && textCollectors.add(n.trim().toLowerCase()));
+    }
 
     return {
-      totalSpecimens,
-      totalUsers,
-      totalProjects,
-      specimensByFamily,
-      specimensByDepartment: Object.entries(departmentCounts)
+      totals: {
+        specimens: specimens.length,
+        families: families.size,
+        genera: genera.size,
+        species: species.size,
+        collectors:
+          Math.max(collectorUsers, userCollectors.size) + textCollectors.size,
+        withImages,
+      },
+      byFamily: top(byFamily, 12),
+      byOrder: top(byOrder, 10),
+      byDepartment: top(byDepartment),
+      byYear: [...byYear]
         .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10),
-      recentSpecimens,
+        .sort((a, b) => Number(a.name) - Number(b.name)),
+      byTaxonLevel: Object.entries(levels).map(([name, count]) => ({
+        name,
+        count,
+      })),
     };
   }
 }
