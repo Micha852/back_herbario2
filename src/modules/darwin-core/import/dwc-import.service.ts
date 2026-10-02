@@ -62,6 +62,15 @@ export interface ImportIssue {
   messages: string[];
 }
 
+export interface HierarchyConflict {
+  level: string;
+  name: string;
+  /** Padre en la base (se conserva) */
+  current: string | null;
+  /** Padre según el archivo */
+  file: string | null;
+}
+
 export interface ImportReport {
   committed: boolean;
   file: { sheetName: string | null; rows: number; ignoredColumns: string[] };
@@ -73,6 +82,8 @@ export interface ImportReport {
     withWarnings: number;
   };
   newCatalogs: { kind: CatalogKind; label: string; names: string[] }[];
+  /** Taxones existentes con otro padre en la base: se usa el existente sin cambiarlo */
+  hierarchyConflicts: HierarchyConflict[];
   collectors: {
     matched: { name: string; user: string }[];
     unmatched: string[];
@@ -88,6 +99,10 @@ export interface ImportReport {
 class CatalogResolver {
   private maps = new Map<string, Map<string, Named>>();
   readonly created = new Map<CatalogKind, Set<string>>();
+  /** Padre actual de clases, órdenes, familias y géneros existentes (id → padre) */
+  private parents = new Map<string, { id: string; name: string } | null>();
+  /** Taxones existentes cuyo padre en la base no coincide con el del archivo */
+  readonly conflicts = new Map<string, HierarchyConflict>();
 
   constructor(
     private db: Db,
@@ -109,9 +124,27 @@ class CatalogResolver {
       locationTypes,
     ] = await Promise.all([
       this.db.division.findMany({ select: { id: true, name: true } }),
-      this.db.class.findMany({ select: { id: true, name: true } }),
-      this.db.order.findMany({ select: { id: true, name: true } }),
-      this.db.family.findMany({ select: { id: true, name: true } }),
+      this.db.class.findMany({
+        select: {
+          id: true,
+          name: true,
+          division: { select: { id: true, name: true } },
+        },
+      }),
+      this.db.order.findMany({
+        select: {
+          id: true,
+          name: true,
+          class: { select: { id: true, name: true } },
+        },
+      }),
+      this.db.family.findMany({
+        select: {
+          id: true,
+          name: true,
+          order: { select: { id: true, name: true } },
+        },
+      }),
       this.db.department.findMany({ select: { id: true, name: true } }),
       this.db.condition.findMany({ select: { id: true, name: true } }),
       this.db.origin.findMany({ select: { id: true, name: true } }),
@@ -121,6 +154,9 @@ class CatalogResolver {
     ]);
     const index = (items: Named[]) =>
       new Map(items.map((item) => [normalizeName(item.name), item]));
+    for (const c of classes) this.parents.set(c.id, c.division);
+    for (const o of orders) this.parents.set(o.id, o.class);
+    for (const f of families) this.parents.set(f.id, f.order);
     this.maps.set('divisions', index(divisions));
     this.maps.set('classes', index(classes));
     this.maps.set('orders', index(orders));
@@ -135,7 +171,11 @@ class CatalogResolver {
     // Jerárquicos: clave compuesta con el id del padre
     const [genera, species, municipalities, locations] = await Promise.all([
       this.db.genus.findMany({
-        select: { id: true, name: true, familyId: true },
+        select: {
+          id: true,
+          name: true,
+          family: { select: { id: true, name: true } },
+        },
       }),
       this.db.species.findMany({
         select: { id: true, epithet: true, genusId: true },
@@ -147,15 +187,10 @@ class CatalogResolver {
         select: { id: true, name: true, municipalityId: true },
       }),
     ]);
+    // Géneros por nombre: se reutilizan aunque cuelguen de otra familia (se avisa)
+    for (const g of genera) this.parents.set(g.id, g.family);
     this.maps.set(
       'genera',
-      new Map(
-        genera.map((g) => [`${g.familyId ?? ''}|${normalizeName(g.name)}`, g]),
-      ),
-    );
-    // Géneros también por nombre solo (cuando el archivo no trae familia)
-    this.maps.set(
-      'generaByName',
       new Map(genera.map((g) => [normalizeName(g.name), g])),
     );
     this.maps.set(
@@ -230,6 +265,28 @@ class CatalogResolver {
     return item.id;
   }
 
+  /**
+   * Si el taxón ya existía y su padre en la base es otro, lo anota (no se cambia:
+   * la jerarquía existente manda; se corrige a mano en Catálogos si hace falta).
+   */
+  private checkParent(
+    kind: 'classes' | 'orders' | 'families' | 'genera',
+    item: Named,
+    parent: { id: string | null; name: string | null },
+  ) {
+    if (!this.parents.has(item.id) || !parent.name) return;
+    const current = this.parents.get(item.id) ?? null;
+    if (current?.id === parent.id) return;
+    if (current && normalizeName(current.name) === normalizeName(parent.name))
+      return;
+    this.conflicts.set(`${kind}|${item.id}`, {
+      level: CATALOG_LABELS[kind],
+      name: item.name,
+      current: current?.name ?? null,
+      file: parent.name,
+    });
+  }
+
   /** ids "new:" en vista previa no existen en la base: no se usan como FK */
   private real = (id: string | null) =>
     id && !id.startsWith('new:') ? id : null;
@@ -276,7 +333,13 @@ class CatalogResolver {
     kind: 'classes' | 'orders' | 'families',
     name: string,
     parentId: string | null,
+    parentName: string | null,
   ) {
+    const existing = this.map(kind).get(normalizeName(name));
+    if (existing) {
+      this.checkParent(kind, existing, { id: parentId, name: parentName });
+      return Promise.resolve(existing.id);
+    }
     const parent = this.real(parentId);
     return this.getOrCreate(kind, normalizeName(name), name, () => {
       switch (kind) {
@@ -290,19 +353,15 @@ class CatalogResolver {
     });
   }
 
-  genus(name: string, familyId: string | null) {
+  genus(name: string, familyId: string | null, familyName: string | null) {
     const key = normalizeName(name);
-    if (!familyId) {
-      const byName = this.map('generaByName').get(key);
-      if (byName) return Promise.resolve(byName.id);
+    const existing = this.map('genera').get(key);
+    if (existing) {
+      this.checkParent('genera', existing, { id: familyId, name: familyName });
+      return Promise.resolve(existing.id);
     }
-    return this.getOrCreate(
-      'genera',
-      `${familyId ?? ''}|${key}`,
-      name,
-      () =>
-        this.db.genus.create({ data: { name, familyId: this.real(familyId) } }),
-      [['generaByName', key]],
+    return this.getOrCreate('genera', key, name, () =>
+      this.db.genus.create({ data: { name, familyId: this.real(familyId) } }),
     );
   }
 
@@ -549,6 +608,7 @@ export class DwcImportService {
             a.localeCompare(b, 'es'),
           ),
         })),
+      hierarchyConflicts: [...resolver.conflicts.values()],
       collectors: {
         matched: [...matched].map(([name, user]) => ({ name, user })),
         unmatched: [...unmatched].sort((a, b) => a.localeCompare(b, 'es')),
@@ -573,15 +633,17 @@ export class DwcImportService {
       ? await resolver.simple('divisions', t.division)
       : null;
     const classId = t.class
-      ? await resolver.taxon('classes', t.class, divisionId)
+      ? await resolver.taxon('classes', t.class, divisionId, t.division)
       : null;
     const orderId = t.order
-      ? await resolver.taxon('orders', t.order, classId)
+      ? await resolver.taxon('orders', t.order, classId, t.class)
       : null;
     const familyId = t.family
-      ? await resolver.taxon('families', t.family, orderId)
+      ? await resolver.taxon('families', t.family, orderId, t.order)
       : null;
-    const genusId = t.genus ? await resolver.genus(t.genus, familyId) : null;
+    const genusId = t.genus
+      ? await resolver.genus(t.genus, familyId, t.family)
+      : null;
     const speciesId =
       genusId && t.genus && t.epithet
         ? await resolver.species(genusId, t.genus, t.epithet, row.author)
