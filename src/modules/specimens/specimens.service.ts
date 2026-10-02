@@ -159,12 +159,23 @@ export class SpecimensService {
       startDate,
       endDate,
       isActive,
+      hasImages,
+      source,
+      taxonLevel,
       sort = 'recent',
     } = searchDto;
 
     const and: Prisma.SpecimenWhereInput[] = [];
 
     if (isActive !== undefined) and.push({ isActive });
+    if (hasImages) {
+      and.push(hasImages === 'true' ? { images: { some: {} } } : { images: { none: {} } });
+    }
+    if (source) and.push({ source });
+    if (taxonLevel === 'species') and.push({ speciesId: { not: null } });
+    if (taxonLevel === 'genus') and.push({ speciesId: null, genusId: { not: null } });
+    if (taxonLevel === 'family') and.push({ speciesId: null, genusId: null, familyId: { not: null } });
+    if (taxonLevel === 'none') and.push({ speciesId: null, genusId: null, familyId: null });
 
     // Búsqueda general: nombres, catálogo y taxonomía
     if (search) {

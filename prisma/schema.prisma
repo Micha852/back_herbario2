@@ -187,6 +187,9 @@ model Specimen {
   // Image reference (MongoDB ObjectId legacy, now uses UUID)
   imageId String? @db.VarChar(50)
 
+  // Cómo se creó: MANUAL (formulario) o IMPORT (Darwin Core)
+  source String @default("MANUAL") @db.VarChar(20)
+
   // Status
   isActive   Boolean @default(true)
   isVerified Boolean @default(false)
@@ -228,6 +231,7 @@ model Specimen {
   @@index([projectId])
   @@index([locationId])
   @@index([isVerified])
+  @@index([source])
   @@map("specimens")
 }
 

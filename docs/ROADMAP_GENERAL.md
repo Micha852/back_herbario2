@@ -272,6 +272,8 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
 ### 2026-10-02
+- **Filtros del panel de muestras (6):** estado, desde, hasta, imágenes (con/sin), origen (manual/importada) y nivel de identificación (especie/solo género/solo familia/sin taxonomía). Campo nuevo `Specimen.source` (migración `specimen_source`, marca como IMPORT las 379 importadas).
+- **Primera importación real:** el usuario importó el Excel del jardín botánico desde el panel: 379 muestras, 614 elementos nuevos en catálogos, 0 errores. Verificado contra el Excel (taxonomía en cascada, fechas, adultos/juveniles, elevación, ubicación, recolectores). El importador ahora reutiliza géneros por nombre y avisa cuando un taxón existente tiene otra clasificación (Magnoliopsida/Liliopsida/Polypodiopsida bajo divisiones viejas vs Tracheophyta). Regla global de cursor para botones (Tailwind 4).
 - **Front Darwin Core:** `/panel/informes` con exportación (formato, rango de fechas, proyecto, inactivas según permiso) y datos de la colección (editables con `cms.edit`); `/panel/muestras/importar` con arrastrar y soltar, vista previa (resumen, catálogos nuevos, recolectores, detalle por fila filtrable) y confirmación con overlay. Botón "Importar" en Muestras (`specimens.import`).
 
 ### 2026-10-01

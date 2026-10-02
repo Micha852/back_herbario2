@@ -575,6 +575,7 @@ export class DwcImportService {
             scientificName: row.scientificName,
             otherCollectors: others.join(' | ').slice(0, 500) || null,
             projectId: options.projectId ?? null,
+            source: 'IMPORT',
             createdById: options.userId,
             collectors: collectorIds.length
               ? {

@@ -109,6 +109,24 @@ export class SearchSpecimenDto {
   @IsUUID()
   collectorId?: string;
 
+  @ApiPropertyOptional({ description: 'Con imágenes (true) o sin imágenes (false)' })
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  hasImages?: 'true' | 'false';
+
+  @ApiPropertyOptional({ description: 'Origen: MANUAL (formulario) o IMPORT (Darwin Core)', enum: ['MANUAL', 'IMPORT'] })
+  @IsOptional()
+  @IsIn(['MANUAL', 'IMPORT'])
+  source?: 'MANUAL' | 'IMPORT';
+
+  @ApiPropertyOptional({
+    description: 'Nivel de identificación: species, genus (solo género), family (solo familia) o none',
+    enum: ['species', 'genus', 'family', 'none'],
+  })
+  @IsOptional()
+  @IsIn(['species', 'genus', 'family', 'none'])
+  taxonLevel?: 'species' | 'genus' | 'family' | 'none';
+
   @ApiPropertyOptional({ description: 'Filter by active status' })
   @IsOptional()
   @Transform(({ value }) => value === undefined ? undefined : value === 'true')
