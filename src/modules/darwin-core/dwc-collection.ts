@@ -7,6 +7,8 @@
 export const COLLECTION_SETTINGS_KEY = 'coleccion';
 
 export interface CollectionSettings {
+  /** Encabezado de la etiqueta de herbario en PDF (p. ej. "HERBARIO UNIAMAZONÍA (HUAZ)"); no es Darwin Core */
+  labelTitle: string;
   /** Prefijo del occurrenceID; se le agrega el número de catálogo (p. ej. "UDLA:HUAZ:") */
   occurrenceIdPrefix: string;
   /** PreservedSpecimen (herbario) o LivingSpecimen (jardín botánico) */
@@ -29,6 +31,7 @@ export interface CollectionSettings {
 }
 
 export const DEFAULT_COLLECTION_SETTINGS: CollectionSettings = {
+  labelTitle: '',
   occurrenceIdPrefix: '',
   basisOfRecord: 'PreservedSpecimen',
   institutionCode: '',

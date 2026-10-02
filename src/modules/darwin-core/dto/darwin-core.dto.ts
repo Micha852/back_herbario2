@@ -42,6 +42,7 @@ export class DarwinCoreExportQuery {
 
 /** Datos de la colección (todos opcionales: se actualiza lo que llegue) */
 export class UpdateCollectionSettingsDto {
+  @IsOptional() @IsString() @MaxLength(120) labelTitle?: string;
   @IsOptional() @IsString() @MaxLength(100) occurrenceIdPrefix?: string;
   @IsOptional()
   @IsIn(

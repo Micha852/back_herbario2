@@ -16,8 +16,17 @@ import { resolveTaxonomy, taxonomyInclude } from '../../common/prisma/taxonomy';
 import { ImagesService } from '../images/images.service';
 import { DarwinCoreService } from '../darwin-core/darwin-core.service';
 import { PERMISSIONS } from '../permissions/permissions.constants';
-import { sheetInclude, specimenSheetPdf } from './pdf/specimen-sheet';
-import { CollectorReportRow, collectorReportPdf, collectorReportXlsx } from './pdf/collector-report';
+import {
+  SheetSpecimen,
+  sheetInclude,
+  specimenSheetPdf,
+} from './pdf/specimen-sheet';
+import { herbariumLabelPdf } from './pdf/herbarium-label';
+import {
+  CollectorReportRow,
+  collectorReportPdf,
+  collectorReportXlsx,
+} from './pdf/collector-report';
 import { formatDate } from './pdf/pdf-kit';
 
 export interface DownloadFile {
@@ -76,9 +85,15 @@ export class DocumentsService {
 
   // ---------- Ficha técnica ----------
 
+  /**
+   * Ficha de la muestra en PDF.
+   * - full: ficha técnica completa (imagen opcional).
+   * - label: etiqueta de herbario sobre la foto del pliego (requiere imagen).
+   */
   async specimenSheet(
     id: string,
     user?: { permissions?: string[] } | null,
+    style: 'full' | 'label' = 'full',
   ): Promise<DownloadFile> {
     const specimen = await this.prisma.specimen.findUnique({
       where: { id },
@@ -87,6 +102,8 @@ export class DocumentsService {
     if (!specimen || (!specimen.isActive && !canSeeInactive(user))) {
       throw new NotFoundException('Muestra no encontrada');
     }
+
+    if (style === 'label') return this.herbariumLabel(specimen);
 
     // Imagen principal en JPEG (pdfkit no lee WebP); si falla, la ficha sale sin imagen
     let image: Buffer | null = null;
@@ -117,6 +134,60 @@ export class DocumentsService {
     return {
       buffer,
       filename: `ficha_${slug(specimen.catalogNumber)}_${slug(specimen.scientificName)}.pdf`,
+      contentType: 'application/pdf',
+    };
+  }
+
+  private async herbariumLabel(specimen: SheetSpecimen): Promise<DownloadFile> {
+    const primary = specimen.images[0];
+    if (!primary) {
+      throw new BadRequestException(
+        'La etiqueta de herbario necesita una imagen: carga la foto del pliego primero',
+      );
+    }
+
+    // Original reducida a 2400 px (≈ 220 ppp en carta): la versión "large" se queda corta para imprimir
+    let image: { buffer: Buffer; width: number; height: number };
+    try {
+      const { buffer: original } = await this.images.getImageFile(
+        primary.id,
+        'original',
+      );
+      const { data, info } = await sharp(original)
+        .rotate()
+        .resize({
+          width: 2400,
+          height: 2400,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .flatten({ background: '#ffffff' })
+        .jpeg({ quality: 85 })
+        .toBuffer({ resolveWithObject: true });
+      image = { buffer: data, width: info.width, height: info.height };
+    } catch (error) {
+      this.logger.warn(
+        `Etiqueta ${specimen.catalogNumber}: no se pudo cargar la imagen (${(error as Error).message})`,
+      );
+      throw new BadRequestException('No se pudo leer la imagen de la muestra');
+    }
+
+    const settings = await this.darwinCore.getCollectionSettings();
+    const title =
+      settings.labelTitle.trim() ||
+      (settings.collectionCode
+        ? `HERBARIO ${settings.collectionCode}`
+        : settings.institutionCode.toUpperCase()) ||
+      'HERBARIO';
+
+    const buffer = await herbariumLabelPdf(specimen, {
+      title,
+      country: settings.country || 'Colombia',
+      image,
+    });
+    return {
+      buffer,
+      filename: `etiqueta_${slug(specimen.catalogNumber)}_${slug(specimen.scientificName)}.pdf`,
       contentType: 'application/pdf',
     };
   }

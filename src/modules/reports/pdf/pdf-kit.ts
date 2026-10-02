@@ -3,6 +3,7 @@
  */
 
 // pdfkit es CommonJS (module.exports = clase) y el proyecto no usa esModuleInterop
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 import PDFDocument = require('pdfkit');
 
 export type Doc = PDFKit.PDFDocument;

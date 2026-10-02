@@ -117,7 +117,7 @@ Módulo genérico `/catalogs` (19 catálogos definidos en `back_herbario2/src/mo
 | Funcionalidad | Ref. | Back | Front | Notas |
 |---|---|---|---|---|
 | Informe "muestras por recolector" (PDF y Excel) | CU-029…032, RF-006 | ✅ | ✅ | Incluye recolectores sin cuenta (texto importado); filtro por fechas |
-| Ficha técnica de la muestra (PDF) | HDUA | ✅ | ✅ | Pública para muestras activas; botón en la ficha y en el listado del panel |
+| Ficha técnica de la muestra (PDF) | HDUA | ✅ | ✅ | Dos formatos: ficha técnica completa y **etiqueta de herbario** (foto del pliego a hoja completa + etiqueta abajo a la derecha, como HDUA; solo con imagen). Menú "Descargar PDF" en la ficha y en el listado |
 | Tabla Darwin Core por rango de fechas (CSV y Excel) | RF-006 | ✅ | ✅ | `GET /darwin-core/export?format=xlsx|csv`: 70 términos en el orden de la plantilla SiB/GBIF del jardín botánico, filtros por fecha y proyecto; inactivas solo con `specimens.status` |
 | Datos de la colección (institución, código, derechos...) | DwC | ✅ | ✅ | `GET/PUT /darwin-core/collection` (system_info "coleccion"); editar requiere `cms.edit` |
 | Importar muestras desde Darwin Core (Excel/CSV) | DwC | ✅ | ✅ | `POST /darwin-core/import` (`specimens.import`): vista previa sin escribir + importación en una transacción. Crea la taxonomía/ubicaciones/catálogos que falten (compara sin tildes ni mayúsculas), omite catálogos duplicados, recolectores sin cuenta quedan en texto |
@@ -273,6 +273,7 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
 ### 2026-10-02
+- **Etiqueta de herbario (PDF):** `?style=label` en la ficha: imagen original (máx. 2400 px), orientación según la foto, recuadro con encabezado, familia, nombre, DET, descripción, procedencia con coordenadas en GMS, colectores, catálogo, fecha y proyecto. Campo nuevo "Encabezado de la etiqueta" en Datos de la colección.
 - **Fase D cerrada:** ficha técnica en PDF (`GET /reports/specimens/:id/sheet`, imagen principal, taxonomía, identificación, recolección, ubicación, características), informe por recolector PDF/Excel (`GET /reports/collectors` + `/reports/collector-report`, usuarios y recolectores en texto), estadísticas reales (`/reports/statistics`). Front: Informes con indicadores y 5 gráficas de barras (con vista de tabla), tarjeta de informe por recolector; botón "Ficha en PDF" en la ficha pública y en el listado. Se quitó el viejo `GET /reports/collector/:id`. 59 tests unitarios.
 - **Filtros del panel de muestras (6):** estado, desde, hasta, imágenes (con/sin), origen (manual/importada) y nivel de identificación (especie/solo género/solo familia/sin taxonomía). Campo nuevo `Specimen.source` (migración `specimen_source`, marca como IMPORT las 379 importadas).
 - **Primera importación real:** el usuario importó el Excel del jardín botánico desde el panel: 379 muestras, 614 elementos nuevos en catálogos, 0 errores. Verificado contra el Excel (taxonomía en cascada, fechas, adultos/juveniles, elevación, ubicación, recolectores). El importador ahora reutiliza géneros por nombre y avisa cuando un taxón existente tiene otra clasificación (Magnoliopsida/Liliopsida/Polypodiopsida bajo divisiones viejas vs Tracheophyta). Regla global de cursor para botones (Tailwind 4).

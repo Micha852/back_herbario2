@@ -13,6 +13,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiProduces,
+  ApiQuery,
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { Response } from 'express';
@@ -107,15 +108,24 @@ export class ReportsController {
   @ApiOperation({
     summary: 'Ficha técnica de una muestra en PDF',
     description:
-      'Pública para muestras activas; las inactivas requieren specimens.status.',
+      'style=full (por defecto): ficha completa. style=label: etiqueta de herbario sobre la foto del pliego (requiere imagen). Pública para muestras activas; las inactivas requieren specimens.status.',
   })
+  @ApiQuery({ name: 'style', required: false, enum: ['full', 'label'] })
   @ApiProduces('application/pdf')
   async specimenSheet(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: UserEntity | null,
     @Res() res: Response,
+    @Query('style') style?: string,
   ) {
-    send(res, await this.documentsService.specimenSheet(id, user));
+    send(
+      res,
+      await this.documentsService.specimenSheet(
+        id,
+        user,
+        style === 'label' ? 'label' : 'full',
+      ),
+    );
   }
 }
 
