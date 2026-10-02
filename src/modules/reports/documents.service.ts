@@ -142,7 +142,7 @@ export class DocumentsService {
     const primary = specimen.images[0];
     if (!primary) {
       throw new BadRequestException(
-        'La etiqueta de herbario necesita una imagen: carga la foto del pliego primero',
+        'Esta muestra todavía no tiene la foto del pliego: la etiqueta de herbario la necesita',
       );
     }
 
