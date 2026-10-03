@@ -284,6 +284,9 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
+### 2026-10-03
+- **Chairá probado contra la plataforma real** ("Visitante Chairá 1" creado al primer ingreso). Nuevo "Completar mi cuenta" en el perfil (`POST /auth/chaira/complete`): una cuenta de Chairá sin contraseña puede asignarse correo real + contraseña (y su nombre) para entrar desde cualquier navegador con el login normal, conservando sus comentarios. Solo una vez, mismas reglas que el registro, 5 intentos por minuto.
+
 ### 2026-10-02
 - **Fase E (casi completa):** e2e con base dedicada, Docker + compose, CI, buzón de sugerencias, limpieza, Next 16.3.8, validaciones de coherencia, refresh 401. Tarea nueva documentada: login con Chairá (OAuth2) — el de HDUA no validaba el código ni identificaba al usuario.
 - **Etiqueta de herbario (PDF):** `?style=label` en la ficha: imagen original (máx. 2400 px), orientación según la foto, recuadro con encabezado, familia, nombre, DET, descripción, procedencia con coordenadas en GMS, colectores, catálogo, fecha y proyecto. Campo nuevo "Encabezado de la etiqueta" en Datos de la colección.

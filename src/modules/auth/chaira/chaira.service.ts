@@ -12,7 +12,15 @@
  * Ver ROADMAP_GENERAL.md (ideas futuras) para la versión completa con OAuth2.
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { PasswordUtil } from '../../../common/utils/password.util';
+import { CompleteChairaAccountDto } from './complete-account.dto';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'crypto';
@@ -116,6 +124,40 @@ export class ChairaService {
       );
       return this.errorUrl('error');
     }
+  }
+
+  /**
+   * Convierte una cuenta de Chairá (sin contraseña) en una cuenta normal: correo real +
+   * contraseña. Así la persona entra desde cualquier navegador con el login normal y
+   * conserva sus comentarios. Solo para cuentas de Chairá que aún no tienen contraseña.
+   */
+  async completeAccount(userId: string, dto: CompleteChairaAccountDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, password: true },
+    });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (!user.email.endsWith(`@${CHAIRA_EMAIL_DOMAIN}`) || user.password) {
+      throw new BadRequestException('Esta cuenta ya tiene correo y contraseña');
+    }
+    if (dto.email.endsWith(`@${CHAIRA_EMAIL_DOMAIN}`)) {
+      throw new BadRequestException('Usa un correo real');
+    }
+    const taken = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: { id: true },
+    });
+    if (taken) throw new ConflictException('El correo ya está registrado');
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        email: dto.email,
+        password: await PasswordUtil.hash(dto.password),
+        ...(dto.name && { name: dto.name }),
+      },
+    });
+    return this.users.findOne(userId);
   }
 
   /** Crea "Visitante Chairá N" (siguiente número libre) */

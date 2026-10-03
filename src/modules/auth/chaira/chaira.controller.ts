@@ -1,12 +1,28 @@
 import {
   BadRequestException,
+  Body,
   Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UseGuards,
+  UseInterceptors,
+  ClassSerializerInterceptor,
   Get,
   NotFoundException,
   Query,
   Res,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { CurrentUser } from '../decorators/current-user.decorator';
+import { UserEntity } from '../../users/entities/user.entity';
+import { CompleteChairaAccountDto } from './complete-account.dto';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { Public } from '../decorators/public.decorator';
@@ -14,6 +30,8 @@ import { ChairaService } from './chaira.service';
 import { DEVICE_KEY_PATTERN } from './chaira.constants';
 
 @ApiTags('Auth')
+// UserEntity oculta la contraseña al serializar (igual que AuthController)
+@UseInterceptors(ClassSerializerInterceptor)
 @Controller('auth/chaira')
 export class ChairaController {
   constructor(private readonly chaira: ChairaService) {}
@@ -44,6 +62,23 @@ export class ChairaController {
     if (device && !DEVICE_KEY_PATTERN.test(device))
       throw new BadRequestException('Llave de dispositivo no válida');
     res.redirect(this.chaira.authorizationUrl(device));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('complete')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Asignar correo y contraseña a una cuenta creada con Chairá',
+    description:
+      'Después puede entrar con el login normal desde cualquier navegador.',
+  })
+  complete(
+    @CurrentUser() user: UserEntity,
+    @Body() dto: CompleteChairaAccountDto,
+  ) {
+    return this.chaira.completeAccount(user.id, dto);
   }
 
   @Public()
