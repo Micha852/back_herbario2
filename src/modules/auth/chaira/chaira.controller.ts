@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   HttpCode,
@@ -13,12 +12,7 @@ import {
   Query,
   Res,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { UserEntity } from '../../users/entities/user.entity';
@@ -30,7 +24,6 @@ import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { Public } from '../decorators/public.decorator';
 import { ChairaService } from './chaira.service';
-import { DEVICE_KEY_PATTERN } from './chaira.constants';
 
 @ApiTags('Auth')
 // UserEntity oculta la contraseña al serializar (igual que AuthController)
@@ -54,17 +47,10 @@ export class ChairaController {
   @ApiOperation({
     summary: 'Redirige a la página de inicio de sesión de Chairá',
   })
-  @ApiQuery({
-    name: 'device',
-    required: false,
-    description: 'Llave del navegador (para recuperar la misma cuenta)',
-  })
-  start(@Query('device') device: string | undefined, @Res() res: Response) {
+  start(@Res() res: Response) {
     if (!this.chaira.enabled)
       throw new NotFoundException('El ingreso con Chairá no está habilitado');
-    if (device && !DEVICE_KEY_PATTERN.test(device))
-      throw new BadRequestException('Llave de dispositivo no válida');
-    res.redirect(this.chaira.authorizationUrl(device));
+    res.redirect(this.chaira.authorizationUrl());
   }
 
   @UseGuards(JwtAuthGuard)

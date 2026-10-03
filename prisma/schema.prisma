@@ -28,9 +28,6 @@ model User {
   typeId        String?
   institutionId String?
 
-  // Ingreso con Chairá (cuentas "Visitante Chairá N", sin contraseña): hash SHA-256 de la llave
-  // que guarda el navegador, para reconocer a quien vuelve a entrar desde el mismo navegador
-  chairaKeyHash String? @unique @db.VarChar(64)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
