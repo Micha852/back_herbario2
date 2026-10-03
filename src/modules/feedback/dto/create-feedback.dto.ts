@@ -9,6 +9,8 @@ export class CreateFeedbackDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(10, { message: 'El comentario debe tener al menos 10 caracteres' })
-  @MaxLength(2000, { message: 'El comentario no puede exceder 2000 caracteres' })
+  @MaxLength(2000, {
+    message: 'El comentario no puede exceder 2000 caracteres',
+  })
   comment: string;
 }

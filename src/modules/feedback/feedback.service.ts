@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { MailService } from '../mail/mail.service';
 import { escapeHtml } from '../../common/utils/html.util';
 import { CreateFeedbackDto } from './dto/create-feedback.dto';
@@ -8,7 +7,6 @@ import { CreateFeedbackDto } from './dto/create-feedback.dto';
 export class FeedbackService {
   constructor(
     private mailService: MailService,
-    private configService: ConfigService,
   ) {}
 
   async sendFeedback(
@@ -16,9 +14,8 @@ export class FeedbackService {
     userName: string,
     userEmail: string,
   ): Promise<{ message: string }> {
-    const herbarioEmail =
-      this.configService.get<string>('HERBARIO_EMAIL') ||
-      'herbario@uniamazonia.edu.co';
+    // Configurable en el panel (Correo); si no, HERBARIO_EMAIL del .env
+    const herbarioEmail = await this.mailService.feedbackRecipient();
 
     await this.mailService.sendMail({
       to: herbarioEmail,
@@ -35,6 +32,8 @@ export class FeedbackService {
       `,
     });
 
-    return { message: 'Sugerencia enviada correctamente. Gracias por tu comentario.' };
+    return {
+      message: 'Sugerencia enviada correctamente. Gracias por tu comentario.',
+    };
   }
 }

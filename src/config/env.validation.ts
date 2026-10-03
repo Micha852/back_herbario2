@@ -39,11 +39,7 @@ export function validateEnv(
       if (PLACEHOLDER.test(value))
         errors.push(`${key} parece un valor de ejemplo: genera uno aleatorio`);
     }
-    if (!config.MAIL_HOST || !config.MAIL_USER || !config.MAIL_PASSWORD) {
-      errors.push(
-        'En producción se requieren MAIL_HOST, MAIL_USER y MAIL_PASSWORD (recuperación de contraseña)',
-      );
-    }
+    // El correo (SMTP) ya no es obligatorio aquí: se puede configurar en el panel (Correo)
   }
 
   if (errors.length > 0) {
