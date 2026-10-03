@@ -19,7 +19,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
+import { RegisterDto, RegisterWithCodeDto } from './dto/register.dto';
 import { LoginDto, LoginResponseDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
@@ -44,6 +44,19 @@ export class AuthController {
   ) {}
 
   @Public()
+  @Throttle({ default: { limit: 3, ttl: 60000 } }) // cada código es un correo enviado
+  @Post('register/code')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Registro, paso 1: enviar código de verificación al correo',
+    description:
+      'Valida los datos y que el correo esté libre. La cuenta se crea en POST /auth/register con el código.',
+  })
+  sendRegisterCode(@Body() dto: RegisterDto): Promise<{ message: string }> {
+    return this.authService.sendRegisterCode(dto);
+  }
+
+  @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
   @ApiOperation({
@@ -59,7 +72,9 @@ export class AuthController {
     status: HttpStatus.CONFLICT,
     description: 'Email already exists',
   })
-  async register(@Body() registerDto: RegisterDto): Promise<LoginResponseDto> {
+  async register(
+    @Body() registerDto: RegisterWithCodeDto,
+  ): Promise<LoginResponseDto> {
     return this.authService.register(registerDto);
   }
 

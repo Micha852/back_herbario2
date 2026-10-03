@@ -662,7 +662,8 @@ model CatalogCounter {
 /// Códigos de un solo uso para verificar un correo (6 dígitos, se guarda su hash)
 model EmailVerification {
   id        String   @id @default(uuid())
-  userId    String
+  /// null = verificación previa a crear la cuenta (registro)
+  userId    String?
   email     String   @db.VarChar(100)
   codeHash  String   @db.VarChar(64)
   purpose   String   @db.VarChar(30) // p. ej. "chaira-complete"
@@ -670,8 +671,9 @@ model EmailVerification {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, purpose])
+  @@index([email, purpose])
   @@map("email_verifications")
 }

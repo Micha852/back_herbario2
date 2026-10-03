@@ -76,11 +76,3 @@ export class TestMailDto {
   @IsEmail({}, { message: 'El correo de destino no es válido' })
   to?: string;
 }
-
-export class TestMailDto {
-  @ApiPropertyOptional({ description: 'Destinatario (por defecto, el correo del admin)' })
-  @IsOptional()
-  @ValidateIf((o) => emptyOr(o, 'to'))
-  @IsEmail({}, { message: 'El correo de destino no es válido' })
-  to?: string;
-}

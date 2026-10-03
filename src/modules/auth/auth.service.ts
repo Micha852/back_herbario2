@@ -2,6 +2,7 @@ import { CHAIRA_EMAIL_DOMAIN } from './chaira/chaira.constants';
 import {
   Injectable,
   BadRequestException,
+  ConflictException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -13,7 +14,10 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { UserEntity } from '../users/entities/user.entity';
-import { RegisterDto } from './dto/register.dto';
+import { RegisterDto, RegisterWithCodeDto } from './dto/register.dto';
+import { EmailVerificationService } from './email-verification.service';
+
+const REGISTER_PURPOSE = 'register';
 import { LoginResponseDto } from './dto/login.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { MailService } from '../mail/mail.service';
@@ -26,6 +30,7 @@ export class AuthService {
     private configService: ConfigService,
     private mailService: MailService,
     private permissionsService: PermissionsService,
+    private emailVerification: EmailVerificationService,
   ) {}
 
   /**
@@ -74,8 +79,36 @@ export class AuthService {
   /**
    * Register a new user
    */
-  async register(registerDto: RegisterDto): Promise<LoginResponseDto> {
-    const user = await this.usersService.create(registerDto);
+  /**
+   * Registro, paso 1: valida que el correo esté libre y le envía un código.
+   * La cuenta todavía no se crea (no quedan cuentas sin verificar).
+   */
+  async sendRegisterCode(dto: RegisterDto): Promise<{ message: string }> {
+    const email = dto.email.trim().toLowerCase();
+    if (email.endsWith(`@${CHAIRA_EMAIL_DOMAIN}`)) {
+      throw new BadRequestException('Usa un correo real');
+    }
+    if (await this.usersService.findByEmail(dto.email)) {
+      throw new ConflictException('El correo ya está registrado');
+    }
+    await this.emailVerification.send({
+      email,
+      purpose: REGISTER_PURPOSE,
+      name: dto.name,
+      action: 'crear tu cuenta en el Herbario',
+    });
+    return { message: `Te enviamos un código a ${email}` };
+  }
+
+  /** Registro, paso 2: con el código correcto se crea la cuenta y se inicia sesión */
+  async register(dto: RegisterWithCodeDto): Promise<LoginResponseDto> {
+    const { code, ...data } = dto;
+    await this.emailVerification.verify({
+      email: dto.email.trim().toLowerCase(),
+      purpose: REGISTER_PURPOSE,
+      code,
+    });
+    const user = await this.usersService.create(data);
     return this.login(user);
   }
 

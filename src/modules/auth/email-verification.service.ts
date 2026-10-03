@@ -1,7 +1,8 @@
 /**
  * Códigos de verificación de correo (6 dígitos, un solo uso).
  * Se guarda solo el hash del código; vence a los 15 minutos y admite 5 intentos.
- * Reutilizable: cada flujo usa su propio `purpose`.
+ * Reutilizable: cada flujo usa su propio `purpose`. Sin `userId` (p. ej. el registro, cuando
+ * la cuenta aún no existe) el código se identifica por el correo.
  */
 
 import { BadRequestException, Injectable } from '@nestjs/common';
@@ -23,9 +24,20 @@ export class EmailVerificationService {
     private mail: MailService,
   ) {}
 
+  /** Códigos del flujo: por usuario, o por correo si aún no hay cuenta */
+  private scope(params: {
+    userId?: string | null;
+    email: string;
+    purpose: string;
+  }) {
+    return params.userId
+      ? { userId: params.userId, purpose: params.purpose }
+      : { userId: null, email: params.email, purpose: params.purpose };
+  }
+
   /** Genera un código nuevo (anula los anteriores del mismo flujo) y lo envía por correo */
   async send(params: {
-    userId: string;
+    userId?: string | null;
     email: string;
     purpose: string;
     name: string;
@@ -34,11 +46,11 @@ export class EmailVerificationService {
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
     await this.prisma.$transaction([
       this.prisma.emailVerification.deleteMany({
-        where: { userId: params.userId, purpose: params.purpose },
+        where: this.scope(params),
       }),
       this.prisma.emailVerification.create({
         data: {
-          userId: params.userId,
+          userId: params.userId ?? null,
           email: params.email,
           purpose: params.purpose,
           codeHash: hashCode(code),
@@ -63,13 +75,13 @@ export class EmailVerificationService {
 
   /** Valida el código; si es correcto lo consume. Lanza 400 con un mensaje claro si no */
   async verify(params: {
-    userId: string;
+    userId?: string | null;
     email: string;
     purpose: string;
     code: string;
   }): Promise<void> {
     const record = await this.prisma.emailVerification.findFirst({
-      where: { userId: params.userId, purpose: params.purpose },
+      where: this.scope(params),
       orderBy: { createdAt: 'desc' },
     });
 
@@ -100,7 +112,7 @@ export class EmailVerificationService {
     }
 
     await this.prisma.emailVerification.deleteMany({
-      where: { userId: params.userId, purpose: params.purpose },
+      where: this.scope(params),
     });
   }
 }
