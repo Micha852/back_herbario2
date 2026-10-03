@@ -1,4 +1,10 @@
-import { Injectable, BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { CHAIRA_EMAIL_DOMAIN } from './chaira/chaira.constants';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { escapeHtml } from '../../common/utils/html.util';
 import { PermissionsService } from '../permissions/permissions.service';
@@ -57,7 +63,10 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role?.name || 'VISITANTE',
-        permissions: await this.permissionsService.getEffectivePermissions(user.id, user.role?.name),
+        permissions: await this.permissionsService.getEffectivePermissions(
+          user.id,
+          user.role?.name,
+        ),
       },
     };
   }
@@ -104,10 +113,19 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       // Don't reveal if email exists
-      return { message: 'Si el correo existe, recibirás instrucciones para recuperar tu contraseña' };
+      return {
+        message:
+          'Si el correo existe, recibirás instrucciones para recuperar tu contraseña',
+      };
     }
 
-    const genericMessage = { message: 'Si el correo existe, recibirás instrucciones para recuperar tu contraseña' };
+    const genericMessage = {
+      message:
+        'Si el correo existe, recibirás instrucciones para recuperar tu contraseña',
+    };
+
+    // Cuentas de Chairá: no tienen contraseña ni correo real (entran solo por Chairá)
+    if (user.email.endsWith(`@${CHAIRA_EMAIL_DOMAIN}`)) return genericMessage;
 
     // Contraseña temporal de 7 dígitos (como en HDUA 1.0), con generador criptográfico
     const tempPassword = randomInt(1000000, 10000000).toString();

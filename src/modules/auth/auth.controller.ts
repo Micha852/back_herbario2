@@ -59,9 +59,7 @@ export class AuthController {
     status: HttpStatus.CONFLICT,
     description: 'Email already exists',
   })
-  async register(
-    @Body() registerDto: RegisterDto,
-  ): Promise<LoginResponseDto> {
+  async register(@Body() registerDto: RegisterDto): Promise<LoginResponseDto> {
     return this.authService.register(registerDto);
   }
 
@@ -138,7 +136,10 @@ export class AuthController {
       'Lets the authenticated user update their name, email, gender, type and institution',
   })
   @ApiResponse({ status: HttpStatus.OK, type: UserEntity })
-  @ApiResponse({ status: HttpStatus.CONFLICT, description: 'Email already exists' })
+  @ApiResponse({
+    status: HttpStatus.CONFLICT,
+    description: 'Email already exists',
+  })
   updateProfile(
     @CurrentUser() user: UserEntity,
     @Body() updateProfileDto: UpdateProfileDto,
@@ -152,13 +153,22 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deactivate own account',
-    description: 'Soft-deletes the authenticated user. Administrators cannot deactivate themselves.',
+    description:
+      'Soft-deletes the authenticated user. Administrators cannot deactivate themselves.',
   })
-  @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Account deactivated' })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Un administrador no puede desactivar su propia cuenta' })
+  @ApiResponse({
+    status: HttpStatus.NO_CONTENT,
+    description: 'Account deactivated',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Un administrador no puede desactivar su propia cuenta',
+  })
   async deactivateProfile(@CurrentUser() user: UserEntity): Promise<void> {
     if (user.role?.name === UserRole.ADMIN) {
-      throw new ForbiddenException('Un administrador no puede desactivar su propia cuenta');
+      throw new ForbiddenException(
+        'Un administrador no puede desactivar su propia cuenta',
+      );
     }
     await this.usersService.remove(user.id);
   }
@@ -200,7 +210,11 @@ export class AuthController {
     @Body('currentPassword') currentPassword: string,
     @Body('newPassword') newPassword: string,
   ): Promise<{ message: string }> {
-    return this.authService.changePassword(user.id, currentPassword, newPassword);
+    return this.authService.changePassword(
+      user.id,
+      currentPassword,
+      newPassword,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -208,7 +222,8 @@ export class AuthController {
   @Post('verify-password')
   @ApiOperation({
     summary: 'Verify current password',
-    description: 'Verify if the provided password is correct (for profile security)',
+    description:
+      'Verify if the provided password is correct (for profile security)',
   })
   @ApiResponse({
     status: HttpStatus.OK,

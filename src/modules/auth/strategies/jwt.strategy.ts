@@ -31,7 +31,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException();
     }
     // Permisos efectivos en cada petición: los cambios del admin aplican al instante
-    user.permissions = await this.permissionsService.getEffectivePermissions(user.id, user.role?.name);
+    user.permissions = await this.permissionsService.getEffectivePermissions(
+      user.id,
+      user.role?.name,
+    );
     return user;
   }
 }
