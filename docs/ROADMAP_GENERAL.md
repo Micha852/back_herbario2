@@ -57,7 +57,7 @@ Leyenda: ✅ hecho · ⚠️ parcial / con bugs · ❌ no existe · — no aplic
 | Ficha técnica de la muestra | CU-027 | ✅ | ✅ | Taxonomía, ubicación, características, observaciones, recolectores, proyecto |
 | Galería de imágenes en la ficha (carrusel + zoom) | D3 | ✅ | ✅ | Miniaturas + visor a pantalla completa. Usa `imageId` heredado si la muestra no tiene `SpecimenImage` |
 | Mapa de ubicación (Leaflet) | RF-004 | ✅ | ✅ | Capas mapa/satélite; si la muestra no tiene coordenadas usa las de la localidad (aproximada) |
-| Ficha técnica en PDF | HDUA | ❌ | ❌ | En HDUA 1.0 solo ADMIN |
+| Ficha técnica en PDF | HDUA | ✅ | ✅ | Ficha completa y etiqueta de herbario (ver 3.7) |
 | Muestras inactivas visibles solo para ADMIN/COLABORADOR | HDUA | ✅ | ✅ | `OptionalJwtAuthGuard`: el público solo recibe activas; una inactiva responde 404 |
 
 ### 3.2 Comentarios
@@ -129,7 +129,7 @@ Módulo genérico `/catalogs` (19 catálogos definidos en `back_herbario2/src/mo
 |---|---|---|---|---|
 | Páginas historia, datos, contacto, términos | HDUA | ✅ | ✅ | |
 | Editor CMS (solo ADMIN) | HDUA | ✅ | ✅ | `PUT system-info/:key` requiere `cms.edit`; el front protege la ruta por permiso |
-| Buzón de sugerencias (correo al herbario) | HDUA | ✅ | ❌ | |
+| Buzón de sugerencias (correo al herbario) | HDUA | ✅ | ✅ | En /contacto; destinatario configurable en Panel → Correo |
 
 ---
 
@@ -186,15 +186,15 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 
 ### Front
 - [x] 401 redirige a `/auth/login?session=expired` (ruta inexistente → `/login`).
-- [ ] Solo `specimens.service` usa `apiFetch`; unificar el resto de servicios.
-- [ ] Servicios sin uso: `catalogs.service.ts`, `cms.service.ts`. Página duplicada `/contactos`.
+- [x] Las peticiones con sesión usan `apiFetch` (renueva el token). Quedan con `fetch` directo solo los endpoints públicos (taxonomía, ubicaciones, proyectos, recolectores) y los de login/registro.
+- [x] Servicios sin uso y página duplicada `/contactos` eliminados (`catalogs.service.ts` se reescribió y se usa).
 - [x] `console.log` de depuración en crear muestra, `specimens.service` y editor CMS eliminados.
 - [x] Botón "Panel de control" solo para ADMIN/COLABORADOR; roles con `getRoleName()`.
-- [ ] Assets vacíos de plantilla en `public/` y `find-cascade.ps1` suelto.
+- [x] Assets de plantilla y `find-cascade.ps1` eliminados.
 
 ### Ambos
-- [ ] Tests: back con 40 tests unitarios (permisos, guard, validación de catálogos, reglas de usuarios); faltan servicios y e2e. Front sin runner.
-- [ ] Sin Docker, CI ni health check.
+- [x] Tests: back con unitarios + e2e (ver Fase E). Front sin runner.
+- [x] Docker, CI y health check (ver Fase E).
 
 ---
 
@@ -228,13 +228,12 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 - [x] Modelo: `identifiedBy`, `dateIdentified`, `otherCollectors`; muestras ligadas al nivel taxonómico más bajo (especie, género o familia).
 - [x] Back: informe por recolector en PDF y Excel; ficha técnica en PDF (pdfkit).
 - [x] Front: `/panel/informes` (exportar Darwin Core con filtros + datos de la colección) y `/panel/muestras/importar` (subir, vista previa, confirmar).
-- [ ] Front: `/panel/informes` (tipo de informe, rango de fechas, formato, descarga).
 - [x] Estadísticas con gráficas (por familia, orden, departamento, año y nivel de identificación).
 
 ### Fase E - Calidad y despliegue ⏳
 - [x] Tests: 62 unitarios + 16 e2e (`test/app.e2e-spec.ts`: auth, permisos, muestras, coherencia, PDF, Darwin Core, importación). El e2e solo corre si la base se llama *test*/*e2e*/*ci*.
 - [x] Refresh de token automático.
-- [ ] Middleware de rutas en el front.
+- [ ] ~~Middleware de rutas en el front~~ → no aplica mientras la sesión viva en localStorage (el servidor del front no la ve). El panel se protege en el cliente y el back valida todo. Se retomaría si la sesión pasa a cookies httpOnly.
 - [x] Buzón de sugerencias en el front (en /contacto; requiere sesión; 5 envíos por hora).
 - [x] Limpieza: módulo `info` (duplicaba system-info, con DELETE de páginas del CMS), página `/contactos` vieja, `find-cascade.ps1`, `lib/types/report.ts`, SVG de plantilla.
 - [x] Docker: `Dockerfile` en back (migra al arrancar, healthcheck) y front (standalone), `back_herbario2/docker-compose.yml` (Postgres + back + front, volúmenes de datos e imágenes) y `.env.docker.example`. CI de GitHub Actions en ambos repos (tipos, tests, build; el back corre migraciones + seed + e2e contra Postgres). **Falta probar las imágenes** (Docker Desktop estaba apagado).
