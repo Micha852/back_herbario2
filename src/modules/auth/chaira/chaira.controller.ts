@@ -22,7 +22,10 @@ import {
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { UserEntity } from '../../users/entities/user.entity';
-import { CompleteChairaAccountDto } from './complete-account.dto';
+import {
+  CompleteChairaAccountDto,
+  SendChairaCodeDto,
+} from './complete-account.dto';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { Public } from '../decorators/public.decorator';
@@ -62,6 +65,19 @@ export class ChairaController {
     if (device && !DEVICE_KEY_PATTERN.test(device))
       throw new BadRequestException('Llave de dispositivo no válida');
     res.redirect(this.chaira.authorizationUrl(device));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 3, ttl: 60000 } }) // cada código es un correo enviado
+  @Post('complete/code')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Enviar código de verificación al correo con el que se completará la cuenta',
+  })
+  sendCode(@CurrentUser() user: UserEntity, @Body() dto: SendChairaCodeDto) {
+    return this.chaira.sendCompleteCode(user.id, dto.email);
   }
 
   @UseGuards(JwtAuthGuard)

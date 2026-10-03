@@ -37,4 +37,19 @@ export class CompleteChairaAccountDto {
       'La contraseña debe tener al menos una mayúscula, una minúscula y un número',
   })
   password: string;
+
+  @ApiProperty({ description: 'Código de 6 dígitos enviado al correo' })
+  @Matches(/^\d{6}$/, { message: 'El código debe tener 6 dígitos' })
+  code: string;
+}
+
+/** Paso 1: pedir el código de verificación para el correo */
+export class SendChairaCodeDto {
+  @ApiProperty({ example: 'juan.perez@uniamazonia.edu.co' })
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
+  @IsEmail({}, { message: 'El correo electrónico no es válido' })
+  @MaxLength(100)
+  email: string;
 }

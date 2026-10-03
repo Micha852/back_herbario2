@@ -21,6 +21,9 @@ import {
 } from '@nestjs/common';
 import { PasswordUtil } from '../../../common/utils/password.util';
 import { CompleteChairaAccountDto } from './complete-account.dto';
+import { EmailVerificationService } from '../email-verification.service';
+
+const COMPLETE_PURPOSE = 'chaira-complete';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'crypto';
@@ -50,6 +53,7 @@ export class ChairaService {
     private prisma: PrismaService,
     private users: UsersService,
     private auth: AuthService,
+    private verification: EmailVerificationService,
   ) {}
 
   get enabled(): boolean {
@@ -132,22 +136,14 @@ export class ChairaService {
    * conserva sus comentarios. Solo para cuentas de Chairá que aún no tienen contraseña.
    */
   async completeAccount(userId: string, dto: CompleteChairaAccountDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { email: true, password: true },
+    await this.assertCanComplete(userId, dto.email);
+    // El correo debe ser de quien lo escribe: se exige el código que le llegó
+    await this.verification.verify({
+      userId,
+      email: dto.email,
+      purpose: COMPLETE_PURPOSE,
+      code: dto.code,
     });
-    if (!user) throw new NotFoundException('Usuario no encontrado');
-    if (!user.email.endsWith(`@${CHAIRA_EMAIL_DOMAIN}`) || user.password) {
-      throw new BadRequestException('Esta cuenta ya tiene correo y contraseña');
-    }
-    if (dto.email.endsWith(`@${CHAIRA_EMAIL_DOMAIN}`)) {
-      throw new BadRequestException('Usa un correo real');
-    }
-    const taken = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-      select: { id: true },
-    });
-    if (taken) throw new ConflictException('El correo ya está registrado');
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -158,6 +154,40 @@ export class ChairaService {
       },
     });
     return this.users.findOne(userId);
+  }
+
+  /** Paso 1: envía un código de 6 dígitos al correo que la persona quiere usar */
+  async sendCompleteCode(userId: string, email: string) {
+    const user = await this.assertCanComplete(userId, email);
+    await this.verification.send({
+      userId,
+      email,
+      purpose: COMPLETE_PURPOSE,
+      name: user.name,
+      action: 'completar tu cuenta del Herbario',
+    });
+    return { message: `Te enviamos un código a ${email}` };
+  }
+
+  /** Revisa que la cuenta pueda completarse y que el correo nuevo sirva */
+  private async assertCanComplete(userId: string, email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true, password: true },
+    });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (!user.email.endsWith(`@${CHAIRA_EMAIL_DOMAIN}`) || user.password) {
+      throw new BadRequestException('Esta cuenta ya tiene correo y contraseña');
+    }
+    if (email.endsWith(`@${CHAIRA_EMAIL_DOMAIN}`)) {
+      throw new BadRequestException('Usa un correo real');
+    }
+    const taken = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (taken) throw new ConflictException('El correo ya está registrado');
+    return user;
   }
 
   /** Crea "Visitante Chairá N" (siguiente número libre) */

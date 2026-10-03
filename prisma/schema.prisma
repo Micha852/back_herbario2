@@ -17,12 +17,12 @@ datasource db {
 // ============================================
 
 model User {
-  id            String   @id @default(uuid())
-  name          String   @db.VarChar(100)
-  email         String   @unique @db.VarChar(100)
-  password      String?  @db.VarChar(255)
-  isCollector   Boolean  @default(false)
-  isActive      Boolean  @default(true)
+  id            String  @id @default(uuid())
+  name          String  @db.VarChar(100)
+  email         String  @unique @db.VarChar(100)
+  password      String? @db.VarChar(255)
+  isCollector   Boolean @default(false)
+  isActive      Boolean @default(true)
   roleId        String
   genderId      String?
   typeId        String?
@@ -30,10 +30,10 @@ model User {
 
   // Ingreso con Chairá (cuentas "Visitante Chairá N", sin contraseña): hash SHA-256 de la llave
   // que guarda el navegador, para reconocer a quien vuelve a entrar desde el mismo navegador
-  chairaKeyHash String?  @unique @db.VarChar(64)
+  chairaKeyHash String? @unique @db.VarChar(64)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   role        Role         @relation(fields: [roleId], references: [id])
@@ -48,6 +48,7 @@ model User {
   updatedSpecimens    Specimen[]          @relation("SpecimenUpdatedBy")
   permissionOverrides UserPermission[]    @relation("PermissionOwner")
   grantedPermissions  UserPermission[]    @relation("PermissionGrantedBy")
+  emailVerifications  EmailVerification[]
 
   @@index([email])
   @@index([roleId])
@@ -351,6 +352,7 @@ model Family {
   genera Genus[]
 
   specimens Specimen[]
+
   @@index([orderId])
   @@map("families")
 }
@@ -369,6 +371,7 @@ model Genus {
   species Species[]
 
   specimens Specimen[]
+
   @@unique([name, familyId])
   @@index([familyId])
   @@map("genera")
@@ -654,4 +657,21 @@ model CatalogCounter {
   updatedAt  DateTime @updatedAt
 
   @@map("catalog_counters")
+}
+
+/// Códigos de un solo uso para verificar un correo (6 dígitos, se guarda su hash)
+model EmailVerification {
+  id        String   @id @default(uuid())
+  userId    String
+  email     String   @db.VarChar(100)
+  codeHash  String   @db.VarChar(64)
+  purpose   String   @db.VarChar(30) // p. ej. "chaira-complete"
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("email_verifications")
 }

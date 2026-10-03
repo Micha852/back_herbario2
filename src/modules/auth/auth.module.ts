@@ -12,6 +12,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { ChairaController } from './chaira/chaira.controller';
 import { ChairaService } from './chaira/chaira.service';
+import { EmailVerificationService } from './email-verification.service';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { ChairaService } from './chaira/chaira.service';
   providers: [
     AuthService,
     ChairaService,
+    EmailVerificationService,
     LocalStrategy,
     JwtStrategy,
     JwtAuthGuard,
