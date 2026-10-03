@@ -1,3 +1,4 @@
+import { assertSpecimenCoherence } from './specimen-rules';
 import {
   Injectable,
   NotFoundException,
@@ -86,6 +87,7 @@ export class SpecimensService {
    * @param userId usuario que crea la muestra (queda como createdBy y updatedBy)
    */
   async create(dto: CreateSpecimenDto, userId?: string) {
+    assertSpecimenCoherence(dto);
     const { collectorIds, collectionDate, latitude, longitude, ...data } = dto;
 
     // Generate catalog number if not provided
@@ -288,7 +290,15 @@ export class SpecimensService {
    * @param userId usuario que edita (queda como updatedBy)
    */
   async update(id: string, dto: UpdateSpecimenDto, userId?: string) {
-    await this.findOne(id);
+    const current = await this.findOne(id);
+    // Se valida el resultado final: lo que llega combinado con lo que ya está guardado
+    const pick = <T,>(value: T | null | undefined, saved: T | null) => (value === undefined ? saved : value);
+    assertSpecimenCoherence({
+      latitude: pick(dto.latitude, current.latitude != null ? Number(current.latitude) : null),
+      longitude: pick(dto.longitude, current.longitude != null ? Number(current.longitude) : null),
+      minElevation: pick(dto.minElevation, current.minElevation),
+      maxElevation: pick(dto.maxElevation, current.maxElevation),
+    });
 
     const { collectorIds, collectionDate, latitude, longitude, ...data } = dto;
 

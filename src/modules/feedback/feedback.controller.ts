@@ -1,10 +1,5 @@
-import {
-  Controller,
-  Post,
-  Body,
-  UseGuards,
-  HttpStatus,
-} from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { Controller, Post, Body, UseGuards, HttpStatus } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -24,10 +19,12 @@ export class FeedbackController {
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @Throttle({ default: { limit: 5, ttl: 3600000 } }) // evita que se use para llenar el correo del herbario
   @Post()
   @ApiOperation({
     summary: 'Send feedback or suggestion',
-    description: 'Sends a suggestion or comment to the herbarium administrators',
+    description:
+      'Sends a suggestion or comment to the herbarium administrators',
   })
   @ApiResponse({
     status: HttpStatus.OK,

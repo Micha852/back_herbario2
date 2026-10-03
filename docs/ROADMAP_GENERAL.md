@@ -232,12 +232,17 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 - [x] Estadísticas con gráficas (por familia, orden, departamento, año y nivel de identificación).
 
 ### Fase E - Calidad y despliegue ⏳
-- [ ] Tests: unitarios de servicios críticos (specimens, auth) y e2e de los flujos principales. ✅ Permisos (19 tests).
+- [x] Tests: 62 unitarios + 16 e2e (`test/app.e2e-spec.ts`: auth, permisos, muestras, coherencia, PDF, Darwin Core, importación). El e2e solo corre si la base se llama *test*/*e2e*/*ci*.
 - [x] Refresh de token automático.
 - [ ] Middleware de rutas en el front.
-- [ ] Buzón de sugerencias en el front.
-- [ ] Limpieza (mocks, servicios duplicados, logs, módulo `info`).
-- [ ] Docker Compose (Postgres + back + front) y health check.
+- [x] Buzón de sugerencias en el front (en /contacto; requiere sesión; 5 envíos por hora).
+- [x] Limpieza: módulo `info` (duplicaba system-info, con DELETE de páginas del CMS), página `/contactos` vieja, `find-cascade.ps1`, `lib/types/report.ts`, SVG de plantilla.
+- [x] Docker: `Dockerfile` en back (migra al arrancar, healthcheck) y front (standalone), `back_herbario2/docker-compose.yml` (Postgres + back + front, volúmenes de datos e imágenes) y `.env.docker.example`. CI de GitHub Actions en ambos repos (tipos, tests, build; el back corre migraciones + seed + e2e contra Postgres). **Falta probar las imágenes** (Docker Desktop estaba apagado).
+- [x] Pendientes sueltos: refresh inválido → 401; elevación mín ≤ máx y coordenadas juntas (formulario + back); Next.js 16.1.1 → 16.3.8 (0 vulnerabilidades en producción); `start:prod` arreglado (el build incluía `prisma/` y dejaba `dist/src/main.js`).
+- [ ] **Login con Chairá (OAuth2 de la Universidad de la Amazonia).** HDUA tenía `LoginController.LoginChaira` → `https://chaira.uniamazonia.edu.co/ChairaApi/oauth2/auth?response_type=code&client_id=…&redirect_uri=…&state=ok` y `ChairaCallback`. **No copiarlo tal cual**, tenía dos fallas graves:
+  1. Nunca canjeaba el `code` por un token ni consultaba quién era el usuario: solo verificaba `state == "ok"` (fijo), así que cualquiera que abriera `/Login/ChairaCallback?state=ok&code=x` quedaba logueado.
+  2. Creaba un usuario nuevo en cada ingreso ("Visitante Chairá N" con un contador, sin correo) y el `client_id` estaba quemado en el código.
+  Para Herbario 2.0: flujo authorization code con `state` aleatorio (anti-CSRF, guardado en cookie firmada) → el back canjea el `code` en el endpoint de token de Chairá (con `client_secret`) → consulta los datos del usuario (correo institucional, nombre) → busca por correo: si existe inicia sesión, si no crea un VISITANTE (institución Uniamazonia) → emite nuestros JWT. `CHAIRA_CLIENT_ID`, `CHAIRA_CLIENT_SECRET`, `CHAIRA_REDIRECT_URI` en `.env`; botón "Ingresar con Chairá" en el login solo si está configurado. **Bloqueante:** conseguir la documentación de Chairá (endpoint de token, endpoint de datos del usuario, scopes) y registrar la URL de callback con la universidad.
 
 ---
 
@@ -273,6 +278,7 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
 ### 2026-10-02
+- **Fase E (casi completa):** e2e con base dedicada, Docker + compose, CI, buzón de sugerencias, limpieza, Next 16.3.8, validaciones de coherencia, refresh 401. Tarea nueva documentada: login con Chairá (OAuth2) — el de HDUA no validaba el código ni identificaba al usuario.
 - **Etiqueta de herbario (PDF):** `?style=label` en la ficha: imagen original (máx. 2400 px), orientación según la foto, recuadro con encabezado, familia, nombre, DET, descripción, procedencia con coordenadas en GMS, colectores, catálogo, fecha y proyecto. Campo nuevo "Encabezado de la etiqueta" en Datos de la colección.
 - **Fase D cerrada:** ficha técnica en PDF (`GET /reports/specimens/:id/sheet`, imagen principal, taxonomía, identificación, recolección, ubicación, características), informe por recolector PDF/Excel (`GET /reports/collectors` + `/reports/collector-report`, usuarios y recolectores en texto), estadísticas reales (`/reports/statistics`). Front: Informes con indicadores y 5 gráficas de barras (con vista de tabla), tarjeta de informe por recolector; botón "Ficha en PDF" en la ficha pública y en el listado. Se quitó el viejo `GET /reports/collector/:id`. 59 tests unitarios.
 - **Filtros del panel de muestras (6):** estado, desde, hasta, imágenes (con/sin), origen (manual/importada) y nivel de identificación (especie/solo género/solo familia/sin taxonomía). Campo nuevo `Specimen.source` (migración `specimen_source`, marca como IMPORT las 379 importadas).

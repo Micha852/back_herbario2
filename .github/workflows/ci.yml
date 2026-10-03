@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: herbario_ci
+          POSTGRES_USER: herbario
+          POSTGRES_PASSWORD: herbario
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U herbario -d herbario_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://herbario:herbario@localhost:5432/herbario_ci?schema=public
+      JWT_SECRET: ci-only-secret-not-for-production-0123456789
+      JWT_REFRESH_SECRET: ci-only-refresh-secret-not-for-production-0123
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Migraciones aplican sobre una base vacía
+        run: npx prisma migrate deploy
+      - name: Tipos
+        run: npx tsc --noEmit -p tsconfig.json
+      - name: Tests unitarios
+        run: npx jest --ci
+      - name: Build
+        run: npm run build
+      - name: Datos iniciales (base de CI)
+        run: npx ts-node prisma/seed.ts --reset
+      - name: Tests e2e
+        run: npm run test:e2e -- --forceExit

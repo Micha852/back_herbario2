@@ -26,7 +26,6 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { DarwinCoreModule } from './modules/darwin-core/darwin-core.module';
 import { MailModule } from './modules/mail/mail.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
-import { InfoModule } from './modules/info/info.module';
 import { SystemInfoModule } from './modules/system-info/system-info.module';
 import { GendersModule } from './modules/genders/genders.module';
 import { InstitutionsModule } from './modules/institutions/institutions.module';
@@ -71,7 +70,6 @@ import { InstitutionsModule } from './modules/institutions/institutions.module';
     ReportsModule,
     DarwinCoreModule,
     FeedbackModule,
-    InfoModule,
     SystemInfoModule,
     GendersModule,
     InstitutionsModule,

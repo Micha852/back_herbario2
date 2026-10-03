@@ -1,0 +1,56 @@
+# Herbario completo: Postgres + back + front.
+# Requiere las dos carpetas lado a lado (back_herbario2 y front_herbario2).
+#
+#   cp .env.docker.example .env.docker   # y completa los secretos
+#   docker compose up -d --build
+#   docker compose exec back npm run prisma:seed   # opcional: datos iniciales
+#
+# Front: http://localhost:3000 · API: http://localhost:4000/api/v1 · Swagger: /api/docs
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: herbario
+      POSTGRES_USER: herbario
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-herbario}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U herbario -d herbario"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  back:
+    build: .
+    restart: unless-stopped
+    env_file: .env.docker
+    environment:
+      DATABASE_URL: postgresql://herbario:${POSTGRES_PASSWORD:-herbario}@db:5432/herbario?schema=public
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  front:
+    build:
+      context: ../front_herbario2
+      args:
+        # URL con la que el NAVEGADOR llega al back
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      back:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  uploads:

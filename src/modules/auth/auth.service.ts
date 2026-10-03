@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { escapeHtml } from '../../common/utils/html.util';
 import { PermissionsService } from '../permissions/permissions.service';
@@ -93,7 +93,7 @@ export class AuthService {
         accessToken: this.jwtService.sign(newPayload),
       };
     } catch (error) {
-      throw new BadRequestException('Sesión inválida o expirada');
+      throw new UnauthorizedException('Sesión inválida o expirada');
     }
   }
 
