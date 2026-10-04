@@ -284,6 +284,7 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
 ### 2026-10-04
+- **Ajustes:** /datos configurable desde el CMS (interruptores por indicadores, cada gráfica y el enlace al mapa; se guarda en `mostrar` del contenido de Datos). Selectores ya no quedan debajo del mapa (Leaflet aislado con `isolate`). Corregido: una muestra con coordenada a medias aparecía en el meridiano 0 (golfo de Guinea) y el Darwin Core podía mezclar la latitud propia con la longitud de la localidad; ahora siempre se usa un par completo. Front: 38 tests.
 - **Mapa de la colección** (`/mapa`, en el menú): `GET /specimens/map` agrupa las muestras por sitio (mismos filtros que la búsqueda; sin coordenadas propias usa las de la localidad, marcado como aproximado). Círculos con el número de muestras, popup con el listado y enlace a cada ficha, capas mapa/satélite, filtros por texto, familia y nivel de identificación.
 - **/datos con estadísticas en vivo:** reemplaza las cifras escritas a mano en el CMS por indicadores y gráficas reales (el editor del CMS ahora solo edita los textos).
 - **Ingresos con Chairá en el dashboard** (solo admin): `users.authProvider` (LOCAL/CHAIRA, se conserva al completar la cuenta); la numeración de "Visitante Chairá N" sigue el conteo de ingresos.

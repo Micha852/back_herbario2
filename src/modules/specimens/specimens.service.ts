@@ -299,14 +299,18 @@ export class SpecimensService {
     let withoutCoordinates = 0;
 
     for (const s of specimens) {
+      // Solo pares completos: con una coordenada a medias, Number(null) daría 0
+      // y el punto caería en el meridiano 0 (golfo de Guinea)
       const own = s.latitude != null && s.longitude != null;
-      const lat = Number(own ? s.latitude : s.location?.latitude);
-      const lng = Number(own ? s.longitude : s.location?.longitude);
-      if (
-        !Number.isFinite(lat) ||
-        !Number.isFinite(lng) ||
-        (s.latitude == null && s.location?.latitude == null)
-      ) {
+      const fromLocation =
+        !own && s.location?.latitude != null && s.location?.longitude != null;
+      if (!own && !fromLocation) {
+        withoutCoordinates++;
+        continue;
+      }
+      const lat = Number(own ? s.latitude : s.location!.latitude);
+      const lng = Number(own ? s.longitude : s.location!.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
         withoutCoordinates++;
         continue;
       }

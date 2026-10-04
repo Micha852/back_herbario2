@@ -115,6 +115,14 @@ export function specimenToDwc(
     .filter(Boolean)
     .join(DWC_LIST_SEPARATOR);
 
+  // Par completo: el de la muestra, o si no tiene, el de la localidad (nunca mezclados)
+  const point: [number, number] | null =
+    specimen.latitude != null && specimen.longitude != null
+      ? [num(specimen.latitude)!, num(specimen.longitude)!]
+      : location?.latitude != null && location?.longitude != null
+        ? [num(location.latitude)!, num(location.longitude)!]
+        : null;
+
   const record: Partial<DwcRecord> = {
     occurrenceID: `${settings.occurrenceIdPrefix}${specimen.catalogNumber}`,
     basisOfRecord: text(settings.basisOfRecord),
@@ -168,8 +176,8 @@ export function specimenToDwc(
     minimumElevationInMeters: minElevation ?? null,
     maximumElevationInMeters: maxElevation ?? null,
     locationRemarks: text(location?.description),
-    decimalLatitude: num(specimen.latitude) ?? num(location?.latitude),
-    decimalLongitude: num(specimen.longitude) ?? num(location?.longitude),
+    decimalLatitude: point?.[0] ?? null,
+    decimalLongitude: point?.[1] ?? null,
 
     identifiedBy: text(specimen.identifiedBy),
     dateIdentified: text(specimen.dateIdentified),

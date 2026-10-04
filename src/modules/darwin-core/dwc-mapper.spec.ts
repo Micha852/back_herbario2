@@ -244,3 +244,26 @@ describe('Darwin Core: identificación hasta género o familia', () => {
     });
   });
 });
+
+describe('Darwin Core: coordenadas', () => {
+  it('nunca mezcla la latitud propia con la longitud de la localidad', () => {
+    const halfOwn = {
+      catalogNumber: 'X',
+      scientificName: 'x',
+      collectors: [],
+      latitude: new Prisma.Decimal('1.6'),
+      longitude: null,
+      location: {
+        name: 'L',
+        latitude: new Prisma.Decimal('2.5'),
+        longitude: new Prisma.Decimal('-75.5'),
+        municipality: null,
+      },
+    } as unknown as DwcSpecimen;
+    const record = specimenToDwc(halfOwn, settings);
+    // Coordenada propia incompleta: se usa el par completo de la localidad
+    expect([record.decimalLatitude, record.decimalLongitude]).toEqual([
+      2.5, -75.5,
+    ]);
+  });
+});
