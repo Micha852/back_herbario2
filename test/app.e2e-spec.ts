@@ -35,6 +35,7 @@ const COLLABORATOR = {
   let adminToken: string;
   let visitorToken: string;
   let collaboratorToken: string;
+  let registeredToken: string;
   let specimenId: string;
   const catalogNumber = `E2E-${Date.now()}`;
   /** Todo lo que se crea aquí se borra al final (muestras, usuarios, imágenes) */
@@ -378,6 +379,7 @@ const COLLABORATOR = {
         .set(auth(res.body.accessToken))
         .expect(200);
       created.users.push(profile.body.id);
+      registeredToken = res.body.accessToken;
       expect(JSON.stringify(profile.body.role)).toContain('VISITANTE');
       expect(profile.body.permissions).not.toContain('specimens.create');
     });
@@ -391,6 +393,66 @@ const COLLABORATOR = {
         .post('/api/v1/auth/register/code')
         .send(account)
         .expect(409);
+    });
+
+    describe('cambiar el correo en mi perfil', () => {
+      const newEmail = `e2e.nuevo.${Date.now()}@example.com`;
+      const patch = (body: object) =>
+        request(http)
+          .patch('/api/v1/auth/profile')
+          .set(auth(registeredToken))
+          .send(body);
+
+      it('sin código no cambia', async () => {
+        await patch({ email: newEmail }).expect(400);
+        await request(http)
+          .post('/api/v1/auth/login')
+          .send({ email, password: account.password })
+          .expect(201);
+      });
+
+      it('no se pide código para un correo ocupado ni para el propio', async () => {
+        const sendCode = (to: string) =>
+          request(http)
+            .post('/api/v1/auth/profile/email/code')
+            .set(auth(registeredToken))
+            .send({ email: to });
+        await sendCode(ADMIN.email.toUpperCase()).expect(409);
+        await sendCode(email).expect(400);
+      });
+
+      it('con el código del correo nuevo cambia y se avisa al anterior', async () => {
+        await request(http)
+          .post('/api/v1/auth/profile/email/code')
+          .set(auth(registeredToken))
+          .send({ email: newEmail.toUpperCase() })
+          .expect(200);
+        expect(sentMail).toHaveBeenLastCalledWith(
+          expect.objectContaining({ to: newEmail }),
+        );
+        const code = lastCode();
+        await patch({
+          email: newEmail,
+          emailCode: code === '000000' ? '111111' : '000000',
+        }).expect(400);
+
+        const res = await patch({ email: newEmail, emailCode: code }).expect(
+          200,
+        );
+        expect(res.body.email).toBe(newEmail);
+        expect(sentMail).toHaveBeenLastCalledWith(
+          expect.objectContaining({ to: email }),
+        );
+
+        await request(http)
+          .post('/api/v1/auth/login')
+          .send({ email: newEmail, password: account.password })
+          .expect(201);
+        await request(http)
+          .post('/api/v1/auth/login')
+          .send({ email, password: account.password })
+          .expect(401);
+      });
     });
   });
 

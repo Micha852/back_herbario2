@@ -1,9 +1,10 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -25,7 +26,16 @@ export class UpdateProfileDto {
   @IsOptional()
   @NormalizeEmail()
   @IsEmail({}, { message: 'El correo electrónico no es válido' })
+  @MaxLength(100)
   email?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Obligatorio si cambia el correo: código enviado al correo nuevo (POST /auth/profile/email/code)',
+  })
+  @IsOptional()
+  @Matches(/^\d{6}$/, { message: 'El código debe tener 6 dígitos' })
+  emailCode?: string;
 
   @ApiPropertyOptional({ description: 'Gender ID (UUID)' })
   @IsOptional()
@@ -41,4 +51,13 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsUUID()
   institutionId?: string;
+}
+
+/** Cambio de correo, paso 1: enviar el código al correo nuevo */
+export class SendEmailCodeDto {
+  @ApiProperty({ example: 'juan.perez@uniamazonia.edu.co' })
+  @NormalizeEmail()
+  @IsEmail({}, { message: 'El correo electrónico no es válido' })
+  @MaxLength(100)
+  email: string;
 }

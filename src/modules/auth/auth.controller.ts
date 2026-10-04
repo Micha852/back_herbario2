@@ -30,7 +30,7 @@ import { UserEntity } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { Throttle } from '@nestjs/throttler';
 import { UserRole } from '../users/enums/user-role.enum';
-import { UpdateProfileDto } from './dto/update-profile.dto';
+import { SendEmailCodeDto, UpdateProfileDto } from './dto/update-profile.dto';
 
 @ApiTags('Auth')
 // Aplica @Exclude() de UserEntity (nunca devolver el hash de la contraseña).
@@ -159,7 +159,24 @@ export class AuthController {
     @CurrentUser() user: UserEntity,
     @Body() updateProfileDto: UpdateProfileDto,
   ): Promise<UserEntity> {
-    return this.usersService.updateProfile(user.id, updateProfileDto);
+    return this.authService.updateProfile(user.id, updateProfileDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 3, ttl: 60000 } }) // cada código es un correo enviado
+  @Post('profile/email/code')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Cambio de correo, paso 1: enviar código al correo nuevo',
+    description:
+      'Luego PATCH /auth/profile con { email, emailCode }. Hasta entonces el correo no cambia.',
+  })
+  sendChangeEmailCode(
+    @CurrentUser() user: UserEntity,
+    @Body() dto: SendEmailCodeDto,
+  ): Promise<{ message: string }> {
+    return this.authService.sendChangeEmailCode(user.id, dto.email);
   }
 
   @UseGuards(JwtAuthGuard)

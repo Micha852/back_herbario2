@@ -45,9 +45,7 @@ export class CompleteChairaAccountDto {
 /** Paso 1: pedir el código de verificación para el correo */
 export class SendChairaCodeDto {
   @ApiProperty({ example: 'juan.perez@uniamazonia.edu.co' })
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim().toLowerCase() : value,
-  )
+  @NormalizeEmail()
   @IsEmail({}, { message: 'El correo electrónico no es válido' })
   @MaxLength(100)
   email: string;

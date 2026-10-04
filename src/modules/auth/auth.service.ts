@@ -15,8 +15,11 @@ import { UsersService } from '../users/users.service';
 import { UserEntity } from '../users/entities/user.entity';
 import { RegisterDto, RegisterWithCodeDto } from './dto/register.dto';
 import { EmailVerificationService } from './email-verification.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { normalizeEmail } from '../../common/utils/email.util';
 
 const REGISTER_PURPOSE = 'register';
+const CHANGE_EMAIL_PURPOSE = 'change-email';
 import { LoginResponseDto } from './dto/login.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { MailService } from '../mail/mail.service';
@@ -104,6 +107,103 @@ export class AuthService {
     });
     const user = await this.usersService.create(data);
     return this.login(user);
+  }
+
+  /**
+   * Cambio de correo, paso 1: el correo nuevo debe estar libre y ser de quien lo escribe,
+   * así que se le envía un código. Hasta confirmarlo, la cuenta sigue con el correo actual.
+   */
+  async sendChangeEmailCode(
+    userId: string,
+    newEmail: string,
+  ): Promise<{ message: string }> {
+    const user = await this.usersService.findOne(userId);
+    const email = this.assertEmailChange(user, newEmail);
+    await this.usersService.assertEmailFree(email, userId);
+    await this.emailVerification.send({
+      userId,
+      email,
+      purpose: CHANGE_EMAIL_PURPOSE,
+      name: user.name,
+      action: 'confirmar tu nuevo correo en el Herbario',
+    });
+    return { message: `Te enviamos un código a ${email}` };
+  }
+
+  /**
+   * Editar mi perfil. Si cambia el correo, exige el código enviado al correo nuevo
+   * (sin él, un error al escribirlo dejaría la cuenta sin poder recuperar la contraseña)
+   * y avisa al correo anterior.
+   */
+  async updateProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+  ): Promise<UserEntity> {
+    const { emailCode, email: requested, ...data } = dto;
+    const user = await this.usersService.findOne(userId);
+    const changesEmail =
+      !!requested && normalizeEmail(requested) !== user.email;
+
+    if (!changesEmail) return this.usersService.updateProfile(userId, data);
+
+    const email = this.assertEmailChange(user, requested);
+    // Primero si está libre (409 claro, y el código no se gasta si el correo ya se ocupó)
+    await this.usersService.assertEmailFree(email, userId);
+    if (!emailCode) {
+      throw new BadRequestException(
+        'Para cambiar el correo, confirma el código que te enviamos al correo nuevo',
+      );
+    }
+    await this.emailVerification.verify({
+      userId,
+      email,
+      purpose: CHANGE_EMAIL_PURPOSE,
+      code: emailCode,
+    });
+    const updated = await this.usersService.updateProfile(userId, {
+      ...data,
+      email,
+    });
+    await this.notifyEmailChanged(user.email, user.name, email);
+    return updated;
+  }
+
+  /** Reglas del cambio de correo que no dependen de la base; devuelve el correo normalizado */
+  private assertEmailChange(user: UserEntity, newEmail: string): string {
+    if (user.email.endsWith(`@${CHAIRA_EMAIL_DOMAIN}`)) {
+      throw new BadRequestException(
+        'Primero completa tu cuenta de Chairá (correo y contraseña)',
+      );
+    }
+    const email = normalizeEmail(newEmail);
+    if (email === user.email) {
+      throw new BadRequestException('Ese ya es el correo de tu cuenta');
+    }
+    return email;
+  }
+
+  /** Aviso al correo anterior (si no fue la persona, puede reaccionar). Si falla, no bloquea */
+  private async notifyEmailChanged(
+    previous: string,
+    name: string,
+    current: string,
+  ) {
+    try {
+      await this.mailService.sendMail({
+        to: previous,
+        subject: 'Cambió el correo de tu cuenta - Herbario HUAZ',
+        html: `
+          <h2>Cambió el correo de tu cuenta</h2>
+          <p>Hola ${escapeHtml(name)},</p>
+          <p>El correo de tu cuenta del Herbario ahora es <strong>${escapeHtml(current)}</strong>.
+          Desde ahora inicias sesión con ese correo.</p>
+          <p>Si no hiciste este cambio, contacta al administrador del herbario.</p>
+          <br><p>Herbario Digital - Universidad de la Amazonia</p>
+        `,
+      });
+    } catch {
+      // Ya quedó registrado en MailService; el cambio de correo ya está hecho
+    }
   }
 
   /**
