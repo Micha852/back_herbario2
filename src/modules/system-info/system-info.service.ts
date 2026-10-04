@@ -18,7 +18,7 @@ export const CREATABLE_PAGES: Record<string, string> = {
 
 /** Campos del contenido que guardan ids de imágenes subidas, por página */
 const IMAGE_FIELDS: Record<string, string[]> = {
-    inicio: ['backgroundImageId', 'logoImageId'],
+    inicio: ['backgroundImageId', 'logoImageId', 'faviconImageId'],
 };
 
 /** Ids de imagen que usa un contenido (JSON) según IMAGE_FIELDS */

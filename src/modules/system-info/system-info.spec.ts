@@ -4,6 +4,9 @@ describe('imágenes de las páginas del CMS', () => {
   it('lee los ids de fondo y logo de la página de inicio', () => {
     const content = JSON.stringify({ backgroundImageId: 'a', logoImageId: 'b', searchButton: 'Buscar' });
     expect(imageIdsIn('inicio', content)).toEqual(['a', 'b']);
+    expect(
+      imageIdsIn('inicio', JSON.stringify({ faviconImageId: 'f' })),
+    ).toEqual(['f']);
   });
 
   it('ignora vacíos, JSON inválido y páginas sin imágenes', () => {
