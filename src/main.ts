@@ -19,6 +19,15 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Detrás de un proxy (nginx): tomar la IP real del cliente de X-Forwarded-For.
+  // Sin esto todas las visitas tienen la IP del proxy y comparten el límite de intentos
+  // (10 logins/min para TODO el sitio). Solo con el back accesible únicamente por el proxy:
+  // si no, cualquiera podría inventarse la IP en esa cabecera. Valor = saltos de proxy.
+  const trustProxy = Number(configService.get<string>('TRUST_PROXY') ?? 0);
+  if (trustProxy > 0) {
+    app.getHttpAdapter().getInstance().set('trust proxy', trustProxy);
+  }
+
   // Prefijo, versionado y validación global (compartido con los tests e2e)
   configureApp(app);
 

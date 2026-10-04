@@ -10,6 +10,12 @@
 #   docker compose exec back npm run prisma:seed -- --reset
 #
 # Front: http://localhost:3000 · API: http://localhost:4000/api/v1 · Swagger: /api/docs
+#
+# Variables del compose (archivo .env junto a este, o en la consola):
+#   POSTGRES_PASSWORD   contraseña de la base (cámbiala en producción)
+#   PUBLIC_API_URL      URL con la que el navegador llega al API (se incrusta en el front)
+#   BACK_PUBLISH / FRONT_PUBLISH   puerto publicado; detrás de nginx: 127.0.0.1:4100 / 127.0.0.1:3100
+#   (Docker publica saltándose el firewall: con 127.0.0.1 solo nginx llega a ellos)
 
 services:
   db:
@@ -37,7 +43,8 @@ services:
       DATABASE_URL: postgresql://herbario:${POSTGRES_PASSWORD:-herbario}@db:5432/herbario?schema=public
       PORT: 4000
     ports:
-      - "4000:4000"
+      # Dónde se publica (en un servidor con nginx delante: BACK_PUBLISH=127.0.0.1:4100)
+      - "${BACK_PUBLISH:-4000}:4000"
     volumes:
       - uploads:/app/uploads
     depends_on:
@@ -53,7 +60,7 @@ services:
         NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000}
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${FRONT_PUBLISH:-3000}:3000"
     depends_on:
       back:
         condition: service_healthy
