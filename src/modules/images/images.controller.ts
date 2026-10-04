@@ -53,19 +53,24 @@ export class ImagesController {
 
   /**
    * Las imágenes se editan con los mismos permisos que su muestra.
-   * Imágenes sin muestra asociada: solo con specimens.edit_any.
+   * Imágenes sin muestra asociada (del sitio, p. ej. fondo y logo del inicio):
+   * con specimens.edit_any o cms.edit.
    */
   private async assertCanEditImage(user: UserEntity, imageId: string): Promise<void> {
     const image = await this.imagesService.getImage(imageId);
     if (image.specimenId) {
       await this.permissionsService.assertCanEditSpecimen(user, image.specimenId);
-    } else if (!hasPermission(user.permissions, PERMISSIONS.SPECIMENS_EDIT_ANY)) {
+    } else if (
+      !hasPermission(user.permissions, PERMISSIONS.SPECIMENS_EDIT_ANY) &&
+      !hasPermission(user.permissions, PERMISSIONS.CMS_EDIT)
+    ) {
       throw new ForbiddenException('No tienes permiso para editar esta imagen');
     }
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.SPECIMENS_CREATE, PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
+  // Sin specimenId son imágenes del sitio (fondo y logo del inicio, desde el CMS)
+  @RequirePermissions(PERMISSIONS.SPECIMENS_CREATE, PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN, PERMISSIONS.CMS_EDIT)
   @ApiBearerAuth()
   @Post('upload')
   @ApiOperation({
@@ -231,7 +236,7 @@ export class ImagesController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
+  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN, PERMISSIONS.CMS_EDIT)
   @ApiBearerAuth()
   @Delete(':id')
   @ApiOperation({ summary: 'Delete image permanently (files + record). To hide it instead, PATCH isActive=false' })

@@ -1,14 +1,46 @@
 import {
     Injectable,
+    Logger,
     NotFoundException,
     BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { ImagesService } from '../images/images.service';
 import { UpdateSystemInfoDto } from './dto/update-system-info.dto';
+
+/**
+ * Páginas que el CMS puede crear la primera vez que se guardan (las demás vienen del seed).
+ * key → título del registro.
+ */
+export const CREATABLE_PAGES: Record<string, string> = {
+    inicio: 'Página de inicio (consultas)',
+};
+
+/** Campos del contenido que guardan ids de imágenes subidas, por página */
+const IMAGE_FIELDS: Record<string, string[]> = {
+    inicio: ['backgroundImageId', 'logoImageId'],
+};
+
+/** Ids de imagen que usa un contenido (JSON) según IMAGE_FIELDS */
+export function imageIdsIn(key: string, content: string | null | undefined): string[] {
+    const fields = IMAGE_FIELDS[key];
+    if (!fields || !content) return [];
+    try {
+        const data = JSON.parse(content) as Record<string, unknown>;
+        return fields.map((f) => data[f]).filter((v): v is string => typeof v === 'string' && v.length > 0);
+    } catch {
+        return [];
+    }
+}
 
 @Injectable()
 export class SystemInfoService {
-    constructor(private prisma: PrismaService) { }
+    private readonly logger = new Logger(SystemInfoService.name);
+
+    constructor(
+        private prisma: PrismaService,
+        private images: ImagesService,
+    ) { }
 
     /**
      * Obtiene un registro de SystemInfo por su key
@@ -39,8 +71,9 @@ export class SystemInfoService {
      * Actualiza el contenido de un registro de SystemInfo
      */
     async update(key: string, updateDto: UpdateSystemInfoDto) {
-        // Validar que el registro existe
-        await this.findByKey(key);
+        // Las páginas creables se crean al guardarlas por primera vez; el resto debe existir
+        const exists = await this.prisma.systemInfo.findUnique({ where: { key } });
+        if (!exists && !CREATABLE_PAGES[key]) await this.findByKey(key);
 
         // Validar que content sea JSON válido
         try {
@@ -49,13 +82,34 @@ export class SystemInfoService {
             throw new BadRequestException('Invalid JSON content');
         }
 
-        return this.prisma.systemInfo.update({
+        const saved = await this.prisma.systemInfo.upsert({
             where: { key },
-            data: {
-                content: updateDto.content,
-                updatedAt: new Date(),
-            },
+            update: { content: updateDto.content, updatedAt: new Date() },
+            create: { key, title: CREATABLE_PAGES[key], content: updateDto.content, isActive: true },
         });
+
+        // Imágenes reemplazadas (p. ej. el fondo anterior): se borran definitivamente
+        const stillUsed = new Set(imageIdsIn(key, updateDto.content));
+        const replaced = imageIdsIn(key, exists?.content).filter((id) => !stillUsed.has(id));
+        await this.deleteSiteImages(replaced);
+
+        return saved;
+    }
+
+    /** Borra imágenes del sitio que ya no se usan (nunca las de una muestra) */
+    private async deleteSiteImages(ids: string[]) {
+        for (const id of ids) {
+            try {
+                const image = await this.prisma.specimenImage.findUnique({
+                    where: { id },
+                    select: { specimenId: true },
+                });
+                if (image && !image.specimenId) await this.images.deleteImage(id);
+            } catch (error) {
+                // No impide guardar: como mucho queda un archivo huérfano
+                this.logger.warn(`No se pudo borrar la imagen ${id}: ${(error as Error).message}`);
+            }
+        }
     }
 
     /**
