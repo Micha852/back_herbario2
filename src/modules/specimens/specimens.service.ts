@@ -19,6 +19,9 @@ import { UpdateSpecimenDto } from './dto/update-specimen.dto';
 import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
+/** Máximo de muestras listadas por sitio en el mapa (el total va en count) */
+const MAP_GROUP_LIMIT = 50;
+
 @Injectable()
 export class SpecimensService {
   constructor(
@@ -139,10 +142,9 @@ export class SpecimensService {
     return specimen;
   }
 
-  async findAll(searchDto: SearchSpecimenDto) {
+  /** Filtro de búsqueda compartido por el listado y el mapa */
+  private buildWhere(searchDto: SearchSpecimenDto): Prisma.SpecimenWhereInput {
     const {
-      page = 1,
-      limit = 20,
       search,
       scientificName,
       commonName,
@@ -164,20 +166,26 @@ export class SpecimensService {
       hasImages,
       source,
       taxonLevel,
-      sort = 'recent',
     } = searchDto;
 
     const and: Prisma.SpecimenWhereInput[] = [];
 
     if (isActive !== undefined) and.push({ isActive });
     if (hasImages) {
-      and.push(hasImages === 'true' ? { images: { some: {} } } : { images: { none: {} } });
+      and.push(
+        hasImages === 'true'
+          ? { images: { some: {} } }
+          : { images: { none: {} } },
+      );
     }
     if (source) and.push({ source });
     if (taxonLevel === 'species') and.push({ speciesId: { not: null } });
-    if (taxonLevel === 'genus') and.push({ speciesId: null, genusId: { not: null } });
-    if (taxonLevel === 'family') and.push({ speciesId: null, genusId: null, familyId: { not: null } });
-    if (taxonLevel === 'none') and.push({ speciesId: null, genusId: null, familyId: null });
+    if (taxonLevel === 'genus')
+      and.push({ speciesId: null, genusId: { not: null } });
+    if (taxonLevel === 'family')
+      and.push({ speciesId: null, genusId: null, familyId: { not: null } });
+    if (taxonLevel === 'none')
+      and.push({ speciesId: null, genusId: null, familyId: null });
 
     // Búsqueda general: nombres, catálogo y taxonomía
     if (search) {
@@ -236,7 +244,114 @@ export class SpecimensService {
       and.push({ collectionDate });
     }
 
-    const where: Prisma.SpecimenWhereInput = and.length ? { AND: and } : {};
+    return and.length ? { AND: and } : {};
+  }
+
+  /**
+   * Puntos para el mapa de la colección (mismos filtros que la búsqueda).
+   * Agrupa las muestras que caen en el mismo sitio (5 decimales ≈ 1 m): sin coordenadas
+   * propias se usan las de la localidad (punto aproximado). Por sitio se devuelven
+   * hasta MAP_GROUP_LIMIT muestras para el listado del popup.
+   */
+  async mapPoints(searchDto: SearchSpecimenDto) {
+    const familyName = { select: { name: true } } as const;
+    const specimens = await this.prisma.specimen.findMany({
+      where: this.buildWhere(searchDto),
+      select: {
+        id: true,
+        catalogNumber: true,
+        scientificName: true,
+        commonName: true,
+        latitude: true,
+        longitude: true,
+        species: { select: { genus: { select: { family: familyName } } } },
+        genus: { select: { family: familyName } },
+        family: familyName,
+        location: {
+          select: {
+            name: true,
+            latitude: true,
+            longitude: true,
+            municipality: {
+              select: { name: true, department: { select: { name: true } } },
+            },
+          },
+        },
+      },
+      orderBy: { scientificName: 'asc' },
+    });
+
+    type Group = {
+      lat: number;
+      lng: number;
+      approximate: boolean;
+      place: string | null;
+      count: number;
+      specimens: {
+        id: string;
+        catalogNumber: string;
+        scientificName: string;
+        commonName: string | null;
+        family: string | null;
+      }[];
+    };
+    const groups = new Map<string, Group>();
+    let withoutCoordinates = 0;
+
+    for (const s of specimens) {
+      const own = s.latitude != null && s.longitude != null;
+      const lat = Number(own ? s.latitude : s.location?.latitude);
+      const lng = Number(own ? s.longitude : s.location?.longitude);
+      if (
+        !Number.isFinite(lat) ||
+        !Number.isFinite(lng) ||
+        (s.latitude == null && s.location?.latitude == null)
+      ) {
+        withoutCoordinates++;
+        continue;
+      }
+      const key = `${lat.toFixed(5)},${lng.toFixed(5)},${own ? 'e' : 'a'}`;
+      let group = groups.get(key);
+      if (!group) {
+        const m = s.location?.municipality;
+        group = {
+          lat,
+          lng,
+          approximate: !own,
+          place:
+            [s.location?.name, m?.name, m?.department?.name]
+              .filter(Boolean)
+              .join(', ') || null,
+          count: 0,
+          specimens: [],
+        };
+        groups.set(key, group);
+      }
+      group.count++;
+      if (group.specimens.length < MAP_GROUP_LIMIT) {
+        group.specimens.push({
+          id: s.id,
+          catalogNumber: s.catalogNumber,
+          scientificName: s.scientificName,
+          commonName: s.commonName,
+          family:
+            (s.species?.genus?.family ?? s.genus?.family ?? s.family)?.name ??
+            null,
+        });
+      }
+    }
+
+    return {
+      total: specimens.length,
+      withCoordinates: specimens.length - withoutCoordinates,
+      withoutCoordinates,
+      groups: [...groups.values()].sort((a, b) => b.count - a.count),
+    };
+  }
+
+  async findAll(searchDto: SearchSpecimenDto) {
+    const { page = 1, limit = 20, sort = 'recent' } = searchDto;
+    const where = this.buildWhere(searchDto);
 
     const orderBy: Prisma.SpecimenOrderByWithRelationInput[] =
       sort === 'name'
@@ -292,10 +407,17 @@ export class SpecimensService {
   async update(id: string, dto: UpdateSpecimenDto, userId?: string) {
     const current = await this.findOne(id);
     // Se valida el resultado final: lo que llega combinado con lo que ya está guardado
-    const pick = <T,>(value: T | null | undefined, saved: T | null) => (value === undefined ? saved : value);
+    const pick = <T>(value: T | null | undefined, saved: T | null) =>
+      value === undefined ? saved : value;
     assertSpecimenCoherence({
-      latitude: pick(dto.latitude, current.latitude != null ? Number(current.latitude) : null),
-      longitude: pick(dto.longitude, current.longitude != null ? Number(current.longitude) : null),
+      latitude: pick(
+        dto.latitude,
+        current.latitude != null ? Number(current.latitude) : null,
+      ),
+      longitude: pick(
+        dto.longitude,
+        current.longitude != null ? Number(current.longitude) : null,
+      ),
       minElevation: pick(dto.minElevation, current.minElevation),
       maxElevation: pick(dto.maxElevation, current.maxElevation),
     });

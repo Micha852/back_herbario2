@@ -4,6 +4,8 @@ import { PrismaService } from '../../database/prisma.service';
 import { Prisma } from '@prisma/client';
 import { PERMISSIONS } from '../permissions/permissions.constants';
 import { hasPermission } from '../permissions/permissions.logic';
+import { UserRole } from '../users/enums/user-role.enum';
+import { CHAIRA_PROVIDER } from '../auth/chaira/chaira.constants';
 
 @Injectable()
 export class ReportsService {
@@ -13,7 +15,11 @@ export class ReportsService {
    * Resumen para el dashboard del panel, según lo que el usuario puede ver:
    * las muestras inactivas solo cuentan con el permiso specimens.status.
    */
-  async getDashboard(user: { id: string; permissions?: string[] }) {
+  async getDashboard(user: {
+    id: string;
+    permissions?: string[];
+    role?: { name: string } | null;
+  }) {
     const canSeeInactive = hasPermission(
       user.permissions,
       PERMISSIONS.SPECIMENS_STATUS,
@@ -95,7 +101,26 @@ export class ReportsService {
         primaryImageId: images[0]?.id ?? null,
       })),
       recentComments,
+      // Solo para el admin: ingresos con Chairá (cada ingreso crea un "Visitante Chairá N")
+      chaira:
+        user.role?.name === UserRole.ADMIN ? await this.chairaStats() : null,
     };
+  }
+
+  private async chairaStats() {
+    const [logins, completed, last] = await Promise.all([
+      this.prisma.user.count({ where: { authProvider: CHAIRA_PROVIDER } }),
+      // Completadas: ya tienen correo real y contraseña
+      this.prisma.user.count({
+        where: { authProvider: CHAIRA_PROVIDER, password: { not: null } },
+      }),
+      this.prisma.user.findFirst({
+        where: { authProvider: CHAIRA_PROVIDER },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      }),
+    ]);
+    return { logins, completed, lastLoginAt: last?.createdAt ?? null };
   }
 
   /**

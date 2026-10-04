@@ -193,7 +193,7 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 - [x] Assets de plantilla y `find-cascade.ps1` eliminados.
 
 ### Ambos
-- [x] Tests: back con unitarios + e2e (ver Fase E). Front sin runner.
+- [x] Tests: back con unitarios + e2e (ver Fase E). Front con Vitest + Testing Library (36 tests: permisos, formulario, payload, taxonomía, cliente HTTP, modal, gráficas, descarga de PDF); corren en la CI.
 - [x] Docker, CI y health check (ver Fase E).
 
 ---
@@ -282,6 +282,12 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 ## 8. Bitácora
 
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
+
+### 2026-10-04
+- **Mapa de la colección** (`/mapa`, en el menú): `GET /specimens/map` agrupa las muestras por sitio (mismos filtros que la búsqueda; sin coordenadas propias usa las de la localidad, marcado como aproximado). Círculos con el número de muestras, popup con el listado y enlace a cada ficha, capas mapa/satélite, filtros por texto, familia y nivel de identificación.
+- **/datos con estadísticas en vivo:** reemplaza las cifras escritas a mano en el CMS por indicadores y gráficas reales (el editor del CMS ahora solo edita los textos).
+- **Ingresos con Chairá en el dashboard** (solo admin): `users.authProvider` (LOCAL/CHAIRA, se conserva al completar la cuenta); la numeración de "Visitante Chairá N" sigue el conteo de ingresos.
+- **Tests del front:** Vitest + React Testing Library (36 tests, incluye la regresión del modal que se cerraba al soltar una selección fuera). Build de producción verificado. CI del front corre los tests.
 
 ### 2026-10-03
 - **Chairá como en HDUA:** cada ingreso crea un "Visitante Chairá N" nuevo (sirve para contar ingresos). Se quitó la llave por navegador (columna `chairaKeyHash` eliminada): hacía que distintas cuentas de Chairá en el mismo navegador cayeran en la misma cuenta, incluso en una ya completada. Quien quiera conservar su cuenta usa "Completar mi cuenta". Modal base: ya no se cierra al soltar una selección de texto fuera; errores de registro y de completar cuenta en toast.

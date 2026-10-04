@@ -40,10 +40,16 @@ function canSeeInactive(user: UserEntity | null): boolean {
 }
 
 /** Cambiar isActive (crear inactiva o activar/inactivar) requiere specimens.status */
-function assertCanChangeStatus(user: UserEntity, isActive: boolean | undefined, creating = false) {
+function assertCanChangeStatus(
+  user: UserEntity,
+  isActive: boolean | undefined,
+  creating = false,
+) {
   if (isActive === undefined || (creating && isActive)) return;
   if (!hasPermission(user.permissions, PERMISSIONS.SPECIMENS_STATUS)) {
-    throw new ForbiddenException('No tienes permiso para activar o inactivar muestras');
+    throw new ForbiddenException(
+      'No tienes permiso para activar o inactivar muestras',
+    );
   }
 }
 
@@ -61,7 +67,8 @@ export class SpecimensController {
   @Post()
   @ApiOperation({
     summary: 'Create a new specimen',
-    description: 'Creates a new botanical specimen with taxonomic classification and geographic data. Requires ADMIN or COLLABORATOR role.',
+    description:
+      'Creates a new botanical specimen with taxonomic classification and geographic data. Requires ADMIN or COLLABORATOR role.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -107,10 +114,27 @@ export class SpecimensController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get('map')
+  @ApiOperation({
+    summary: 'Puntos del mapa de la colección',
+    description:
+      'Mismos filtros que la búsqueda. Agrupa las muestras por sitio; sin coordenadas propias usa las de la localidad (aproximado). Público: solo muestras activas.',
+  })
+  mapPoints(
+    @Query() searchDto: SearchSpecimenDto,
+    @CurrentUser() user: UserEntity | null,
+  ) {
+    if (!canSeeInactive(user)) searchDto.isActive = true;
+    return this.specimensService.mapPoints(searchDto);
+  }
+
+  @Public()
   @Get('reference/origins')
   @ApiOperation({
     summary: 'Get all origins',
-    description: 'Returns list of specimen origins (Nativa, Introducida, Endémica, etc.)',
+    description:
+      'Returns list of specimen origins (Nativa, Introducida, Endémica, etc.)',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -124,7 +148,8 @@ export class SpecimensController {
   @Get('reference/conditions')
   @ApiOperation({
     summary: 'Get all conditions',
-    description: 'Returns list of specimen conditions (Fértil, Estéril, Con flor, etc.)',
+    description:
+      'Returns list of specimen conditions (Fértil, Estéril, Con flor, etc.)',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -138,7 +163,8 @@ export class SpecimensController {
   @Get('reference/origin-types')
   @ApiOperation({
     summary: 'Get all origin types',
-    description: 'Returns list of origin types (Silvestre, Cultivado, Asilvestrado)',
+    description:
+      'Returns list of origin types (Silvestre, Cultivado, Asilvestrado)',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -152,7 +178,8 @@ export class SpecimensController {
   @Get('reference/habitats')
   @ApiOperation({
     summary: 'Get all habitats',
-    description: 'Returns list of habitats (Bosque primario, Bosque secundario, etc.)',
+    description:
+      'Returns list of habitats (Bosque primario, Bosque secundario, etc.)',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -167,7 +194,8 @@ export class SpecimensController {
   @Get(':id')
   @ApiOperation({
     summary: 'Get specimen by ID',
-    description: 'Returns a specimen with all its relations (taxonomy, location, collectors, images, comments)',
+    description:
+      'Returns a specimen with all its relations (taxonomy, location, collectors, images, comments)',
   })
   @ApiParam({ name: 'id', description: 'Specimen UUID' })
   @ApiResponse({
@@ -183,7 +211,11 @@ export class SpecimensController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN, PERMISSIONS.SPECIMENS_STATUS)
+  @RequirePermissions(
+    PERMISSIONS.SPECIMENS_EDIT_ANY,
+    PERMISSIONS.SPECIMENS_EDIT_OWN,
+    PERMISSIONS.SPECIMENS_STATUS,
+  )
   @ApiBearerAuth()
   @Patch(':id')
   @ApiOperation({
@@ -211,19 +243,26 @@ export class SpecimensController {
     assertCanChangeStatus(user, dto.isActive);
     // Con solo isActive basta specimens.status; cualquier otro campo exige poder editarla
     const onlyStatus = Object.keys(dto).every((key) => key === 'isActive');
-    if (!onlyStatus || !hasPermission(user.permissions, PERMISSIONS.SPECIMENS_STATUS)) {
+    if (
+      !onlyStatus ||
+      !hasPermission(user.permissions, PERMISSIONS.SPECIMENS_STATUS)
+    ) {
       await this.permissionsService.assertCanEditSpecimen(user, id);
     }
     return this.specimensService.update(id, dto, user.id);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
+  @RequirePermissions(
+    PERMISSIONS.SPECIMENS_EDIT_ANY,
+    PERMISSIONS.SPECIMENS_EDIT_OWN,
+  )
   @ApiBearerAuth()
   @Patch(':id/image')
   @ApiOperation({
     summary: 'Update specimen primary image',
-    description: 'Associates an image with the specimen. Requires ADMIN or COLLABORATOR role.',
+    description:
+      'Associates an image with the specimen. Requires ADMIN or COLLABORATOR role.',
   })
   @ApiParam({ name: 'id', description: 'Specimen UUID' })
   @ApiResponse({
@@ -245,7 +284,8 @@ export class SpecimensController {
   @Delete(':id')
   @ApiOperation({
     summary: 'Delete a specimen',
-    description: 'Soft deletes a specimen (sets isActive to false). Requires ADMIN role.',
+    description:
+      'Soft deletes a specimen (sets isActive to false). Requires ADMIN role.',
   })
   @ApiParam({ name: 'id', description: 'Specimen UUID' })
   @ApiResponse({
@@ -276,12 +316,16 @@ export class SpecimensController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
+  @RequirePermissions(
+    PERMISSIONS.SPECIMENS_EDIT_ANY,
+    PERMISSIONS.SPECIMENS_EDIT_OWN,
+  )
   @ApiBearerAuth()
   @Post(':id/collectors/:userId')
   @ApiOperation({
     summary: 'Add collector to specimen',
-    description: 'Associates a user as collector of the specimen. Requires ADMIN or COLLABORATOR role.',
+    description:
+      'Associates a user as collector of the specimen. Requires ADMIN or COLLABORATOR role.',
   })
   @ApiParam({ name: 'id', description: 'Specimen UUID' })
   @ApiParam({ name: 'userId', description: 'User UUID to add as collector' })
@@ -299,12 +343,16 @@ export class SpecimensController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
+  @RequirePermissions(
+    PERMISSIONS.SPECIMENS_EDIT_ANY,
+    PERMISSIONS.SPECIMENS_EDIT_OWN,
+  )
   @ApiBearerAuth()
   @Delete(':id/collectors/:userId')
   @ApiOperation({
     summary: 'Remove collector from specimen',
-    description: 'Removes a collector association from the specimen. Requires ADMIN or COLLABORATOR role.',
+    description:
+      'Removes a collector association from the specimen. Requires ADMIN or COLLABORATOR role.',
   })
   @ApiParam({ name: 'id', description: 'Specimen UUID' })
   @ApiParam({ name: 'userId', description: 'User UUID to remove' })

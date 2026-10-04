@@ -30,7 +30,7 @@ import { PrismaService } from '../../../database/prisma.service';
 import { UsersService } from '../../users/users.service';
 import { UserRole } from '../../users/enums/user-role.enum';
 import { AuthService } from '../auth.service';
-import { CHAIRA_EMAIL_DOMAIN } from './chaira.constants';
+import { CHAIRA_EMAIL_DOMAIN, CHAIRA_PROVIDER } from './chaira.constants';
 
 const COMPLETE_PURPOSE = 'chaira-complete';
 
@@ -183,9 +183,8 @@ export class ChairaService {
       this.prisma.institution.findFirst({
         where: { name: { contains: 'Amazonia', mode: 'insensitive' } },
       }),
-      this.prisma.user.count({
-        where: { email: { endsWith: `@${CHAIRA_EMAIL_DOMAIN}` } },
-      }),
+      // El número sigue la cuenta de ingresos con Chairá (incluye las que se completaron)
+      this.prisma.user.count({ where: { authProvider: CHAIRA_PROVIDER } }),
     ]);
 
     // Si otro ingreso tomó el mismo número al mismo tiempo, se prueba el siguiente
@@ -198,6 +197,7 @@ export class ChairaService {
             password: null,
             roleId: role.id,
             institutionId: institution?.id,
+            authProvider: CHAIRA_PROVIDER,
           },
           select: { id: true },
         });
