@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { UserEntity } from './entities/user.entity';
 import { PasswordUtil } from '../../common/utils/password.util';
 import {
@@ -146,41 +145,6 @@ export class UsersService {
     });
 
     return user ? new UserEntity(user) : null;
-  }
-
-  /**
-   * Update user
-   */
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<UserEntity> {
-    // Check if user exists
-    await this.findOne(id);
-
-    const user = await this.prisma.user.update({
-      where: { id },
-      data: {
-        ...(updateUserDto.name && { name: updateUserDto.name }),
-        ...(updateUserDto.roleId && { roleId: updateUserDto.roleId }),
-        ...(updateUserDto.genderId && { genderId: updateUserDto.genderId }),
-        ...(updateUserDto.typeId && { typeId: updateUserDto.typeId }),
-        ...(updateUserDto.institutionId && {
-          institutionId: updateUserDto.institutionId,
-        }),
-        ...(updateUserDto.isCollector !== undefined && {
-          isCollector: updateUserDto.isCollector,
-        }),
-        ...(updateUserDto.isActive !== undefined && {
-          isActive: updateUserDto.isActive,
-        }),
-      },
-      include: {
-        role: true,
-        gender: true,
-        type: true,
-        institution: true,
-      },
-    });
-
-    return new UserEntity(user);
   }
 
   /**

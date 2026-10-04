@@ -15,7 +15,9 @@ import * as bcrypt from 'bcrypt';
 import * as readline from 'readline';
 
 const ADMIN_ROLE = 'ADMINISTRADOR'; // UserRole.ADMIN
-// Mismas reglas que el registro (CreateUserDto)
+// Mismas reglas que src/common/utils/email.util y CreateUserDto. No se importan: la imagen
+// de Docker no incluye src/. La base además exige el correo en minúsculas (CHECK users_email_lowercase).
+const CHAIRA_EMAIL_DOMAIN = 'chaira.local';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const STRONG_PASSWORD = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
@@ -55,11 +57,15 @@ function fail(message: string): never {
 async function main() {
   const interactive = process.stdin.isTTY;
 
-  const email = (
-    arg('email') ?? (interactive ? await ask('Correo: ') : '')
-  ).toLowerCase();
+  const email = (arg('email') ?? (interactive ? await ask('Correo: ') : ''))
+    .trim()
+    .toLowerCase();
   if (!EMAIL.test(email))
     fail('Correo inválido (usa --email correo@dominio.co)');
+  if (email.endsWith(`@${CHAIRA_EMAIL_DOMAIN}`))
+    fail(
+      'Usa un correo real (ese dominio es interno de las cuentas de Chairá)',
+    );
 
   const name =
     arg('name') ?? (interactive ? await ask('Nombre completo: ') : '');

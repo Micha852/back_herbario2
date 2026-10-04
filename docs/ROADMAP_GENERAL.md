@@ -285,6 +285,7 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
 ### 2026-10-04
+- **Usuarios, un solo camino por caso:** eliminado `UsersService.update()` (código muerto que cambiaba rol/estado saltándose las reglas del panel) y su `UpdateUserDto`. `create-admin` aplica también la regla del dominio de Chairá.
 - **Cambiar el correo en Mi perfil exige código:** `POST /auth/profile/email/code` envía un código al correo nuevo y `PATCH /auth/profile` solo cambia el correo con `emailCode`; se avisa al correo anterior. En el front, al guardar con otro correo se abre el modal del código (el correo actual sigue funcionando hasta confirmar). Menús de usuario: correos largos se recortan con "…" (antes se salían). 38 e2e.
 - **Un correo = una cuenta:** regla única en `common/utils/email.util.ts` (normaliza a minúsculas y valida que el correo esté libre) usada por registro, perfil, panel de usuarios y Chairá; login y recuperar contraseña aceptan el correo con otras mayúsculas; el perfil ya no acepta el dominio interno de Chairá; dos registros simultáneos → 409 (no 500). Migración `users_email_lowercase` (normaliza los existentes + CHECK en la base). 72 unitarios, 35 e2e.
 - **README del back** reescrito (antes era la plantilla de NestJS): desarrollo, usuarios de prueba, Docker + create-admin, variables, pruebas, migraciones, estructura.
