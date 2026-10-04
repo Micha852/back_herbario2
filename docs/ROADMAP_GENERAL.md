@@ -231,7 +231,7 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 - [x] Estadísticas con gráficas (por familia, orden, departamento, año y nivel de identificación).
 
 ### Fase E - Calidad y despliegue ⏳
-- [x] Tests: 66 unitarios + 29 e2e (`test/app.e2e-spec.ts`: auth, registro con código al correo, permisos de visitante y colaborador, muestras, coherencia, mapa, PDF, Darwin Core, importación con vista previa y confirmada, imágenes del CMS sin huérfanas). El e2e intercepta el correo (no envía nada). El e2e solo corre si la base se llama *test*/*e2e*/*ci*.
+- [x] Tests: 72 unitarios + 35 e2e (`test/app.e2e-spec.ts`: auth, registro con código al correo, permisos de visitante y colaborador, muestras, coherencia, mapa, PDF, Darwin Core, importación con vista previa y confirmada, imágenes del CMS sin huérfanas). El e2e intercepta el correo (no envía nada). El e2e solo corre si la base se llama *test*/*e2e*/*ci*.
 - [x] Refresh de token automático.
 - [ ] ~~Middleware de rutas en el front~~ → no aplica mientras la sesión viva en localStorage (el servidor del front no la ve). El panel se protege en el cliente y el back valida todo. Se retomaría si la sesión pasa a cookies httpOnly.
 - [x] Buzón de sugerencias en el front (en /contacto; requiere sesión; 5 envíos por hora).
@@ -285,6 +285,8 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
 ### 2026-10-04
+- **Un correo = una cuenta:** regla única en `common/utils/email.util.ts` (normaliza a minúsculas y valida que el correo esté libre) usada por registro, perfil, panel de usuarios y Chairá; login y recuperar contraseña aceptan el correo con otras mayúsculas; el perfil ya no acepta el dominio interno de Chairá; dos registros simultáneos → 409 (no 500). Migración `users_email_lowercase` (normaliza los existentes + CHECK en la base). 72 unitarios, 35 e2e.
+- **README del back** reescrito (antes era la plantilla de NestJS): desarrollo, usuarios de prueba, Docker + create-admin, variables, pruebas, migraciones, estructura.
 - **Docker probado:** compose completo (Postgres + back + front) en puertos aparte; 19/19 en la prueba de humo. Dockerfile del back sin `chown -R` sobre node_modules (1.51 GB → 922 MB). Instalación nueva probada de cero: `create-admin`, roles corregidos por migración (el registro y Chairá habrían fallado en producción), cuenta muerta `admin@udla.edu.co` retirada; registro sin correo configurado → 503 con mensaje claro.
 - **e2e ampliado a 29 casos:** registro con código (el correo se intercepta), código de un solo uso, permisos del colaborador (crea y exporta; no importa, no edita el sitio, no lista usuarios), importación confirmada y reimportación sin duplicados, mapa sin puntos en 0,0, logo del CMS reemplazado y quitado → la imagen anterior se borra.
 - **Imágenes del CMS sin huérfanas:** al guardar la página de inicio se borran (hard) el fondo/logo/favicon reemplazados; las subidas que no se guardan se borran al reemplazarlas o al descartar; aviso al salir con cambios. Imágenes del sitio gestionables con `cms.edit`.

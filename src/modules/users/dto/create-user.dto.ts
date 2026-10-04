@@ -9,6 +9,7 @@ import {
   Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { NormalizeEmail } from '../../../common/utils/email.util';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -26,11 +27,13 @@ export class CreateUserDto {
     description: 'User email address',
     example: 'juan.perez@uniamazonia.edu.co',
   })
+  @NormalizeEmail()
   @IsEmail({}, { message: 'El correo electrónico no es válido' })
   email: string;
 
   @ApiProperty({
-    description: 'User password (min 8 chars, 1 uppercase, 1 lowercase, 1 number)',
+    description:
+      'User password (min 8 chars, 1 uppercase, 1 lowercase, 1 number)',
     example: 'SecurePass123',
     minLength: 8,
   })

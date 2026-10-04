@@ -2,7 +2,6 @@ import { CHAIRA_EMAIL_DOMAIN } from './chaira/chaira.constants';
 import {
   Injectable,
   BadRequestException,
-  ConflictException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -85,12 +84,7 @@ export class AuthService {
    */
   async sendRegisterCode(dto: RegisterDto): Promise<{ message: string }> {
     const email = dto.email.trim().toLowerCase();
-    if (email.endsWith(`@${CHAIRA_EMAIL_DOMAIN}`)) {
-      throw new BadRequestException('Usa un correo real');
-    }
-    if (await this.usersService.findByEmail(dto.email)) {
-      throw new ConflictException('El correo ya está registrado');
-    }
+    await this.usersService.assertEmailFree(email);
     await this.emailVerification.send({
       email,
       purpose: REGISTER_PURPOSE,

@@ -1,7 +1,6 @@
 import {
   Injectable,
   NotFoundException,
-  ConflictException,
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
@@ -9,6 +8,11 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserEntity } from './entities/user.entity';
 import { PasswordUtil } from '../../common/utils/password.util';
+import {
+  assertEmailFree,
+  normalizeEmail,
+  withEmailConflict,
+} from '../../common/utils/email.util';
 
 @Injectable()
 export class UsersService {
@@ -18,14 +22,8 @@ export class UsersService {
    * Create a new user
    */
   async create(createUserDto: CreateUserDto): Promise<UserEntity> {
-    // Check if email already exists
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: createUserDto.email },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('El correo ya está registrado');
-    }
+    const email = normalizeEmail(createUserDto.email);
+    await assertEmailFree(this.prisma, email);
 
     // Validate password strength
     const passwordValidation = PasswordUtil.validateStrength(
@@ -51,25 +49,30 @@ export class UsersService {
     }
 
     // Create user
-    const user = await this.prisma.user.create({
-      data: {
-        name: createUserDto.name,
-        email: createUserDto.email,
-        password: hashedPassword,
-        roleId,
-        genderId: createUserDto.genderId,
-        typeId: createUserDto.typeId,
-        institutionId: createUserDto.institutionId,
-        isCollector: createUserDto.isCollector || false,
-        isActive: createUserDto.isActive !== undefined ? createUserDto.isActive : true,
-      },
-      include: {
-        role: true,
-        gender: true,
-        type: true,
-        institution: true,
-      },
-    });
+    const user = await withEmailConflict(
+      this.prisma.user.create({
+        data: {
+          name: createUserDto.name,
+          email,
+          password: hashedPassword,
+          roleId,
+          genderId: createUserDto.genderId,
+          typeId: createUserDto.typeId,
+          institutionId: createUserDto.institutionId,
+          isCollector: createUserDto.isCollector || false,
+          isActive:
+            createUserDto.isActive !== undefined
+              ? createUserDto.isActive
+              : true,
+        },
+        include: {
+          role: true,
+          gender: true,
+          type: true,
+          institution: true,
+        },
+      }),
+    );
 
     return new UserEntity(user);
   }
@@ -123,12 +126,17 @@ export class UsersService {
     return new UserEntity(user);
   }
 
+  /** ¿El correo está libre? (409 si ya lo usa otra cuenta). Ver common/utils/email.util */
+  assertEmailFree(email: string, exceptUserId?: string): Promise<void> {
+    return assertEmailFree(this.prisma, email, exceptUserId);
+  }
+
   /**
    * Find user by email (for authentication)
    */
   async findByEmail(email: string): Promise<UserEntity | null> {
     const user = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizeEmail(email) },
       include: {
         role: true,
         gender: true,
@@ -190,31 +198,27 @@ export class UsersService {
   ): Promise<UserEntity> {
     await this.findOne(id);
 
-    if (data.email) {
-      const existing = await this.prisma.user.findUnique({
-        where: { email: data.email },
-      });
-      if (existing && existing.id !== id) {
-        throw new ConflictException('El correo ya está registrado');
-      }
-    }
+    const email = data.email ? normalizeEmail(data.email) : undefined;
+    if (email) await assertEmailFree(this.prisma, email, id);
 
-    const user = await this.prisma.user.update({
-      where: { id },
-      data: {
-        ...(data.name && { name: data.name }),
-        ...(data.email && { email: data.email }),
-        ...(data.genderId && { genderId: data.genderId }),
-        ...(data.typeId && { typeId: data.typeId }),
-        ...(data.institutionId && { institutionId: data.institutionId }),
-      },
-      include: {
-        role: true,
-        gender: true,
-        type: true,
-        institution: true,
-      },
-    });
+    const user = await withEmailConflict(
+      this.prisma.user.update({
+        where: { id },
+        data: {
+          ...(data.name && { name: data.name }),
+          ...(email && { email }),
+          ...(data.genderId && { genderId: data.genderId }),
+          ...(data.typeId && { typeId: data.typeId }),
+          ...(data.institutionId && { institutionId: data.institutionId }),
+        },
+        include: {
+          role: true,
+          gender: true,
+          type: true,
+          institution: true,
+        },
+      }),
+    );
 
     return new UserEntity(user);
   }
@@ -307,7 +311,7 @@ export class UsersService {
     password: string,
   ): Promise<UserEntity | null> {
     const user = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizeEmail(email) },
       include: {
         role: true,
         gender: true,

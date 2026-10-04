@@ -17,6 +17,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { UserRole } from '../enums/user-role.enum';
+import { NormalizeEmail } from '../../../common/utils/email.util';
 
 const ROLES = Object.values(UserRole);
 const trim = ({ value }: { value: unknown }) =>
@@ -32,9 +33,7 @@ export class AdminCreateUserDto {
   name: string;
 
   @ApiProperty({ example: 'juan.perez@uniamazonia.edu.co' })
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim().toLowerCase() : value,
-  )
+  @NormalizeEmail()
   @IsEmail({}, { message: 'El correo electrónico no es válido' })
   email: string;
 

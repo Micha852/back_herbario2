@@ -8,6 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { NormalizeEmail } from '../../../common/utils/email.util';
 
 /** Correo y contraseña reales para una cuenta creada con Chairá (mismas reglas que el registro) */
 export class CompleteChairaAccountDto {
@@ -20,9 +21,7 @@ export class CompleteChairaAccountDto {
   name?: string;
 
   @ApiProperty({ example: 'juan.perez@uniamazonia.edu.co' })
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim().toLowerCase() : value,
-  )
+  @NormalizeEmail()
   @IsEmail({}, { message: 'El correo electrónico no es válido' })
   @MaxLength(100)
   email: string;

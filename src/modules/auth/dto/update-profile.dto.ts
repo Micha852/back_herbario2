@@ -7,6 +7,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { NormalizeEmail } from '../../../common/utils/email.util';
 
 /**
  * Fields a user can change on their own profile.
@@ -22,6 +23,7 @@ export class UpdateProfileDto {
 
   @ApiPropertyOptional({ example: 'juan.perez@uniamazonia.edu.co' })
   @IsOptional()
+  @NormalizeEmail()
   @IsEmail({}, { message: 'El correo electrónico no es válido' })
   email?: string;
 

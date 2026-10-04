@@ -1,11 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsNotEmpty } from 'class-validator';
+import { NormalizeEmail } from '../../../common/utils/email.util';
 
 export class ForgotPasswordDto {
   @ApiProperty({
     example: 'usuario@uniamazonia.edu.co',
     description: 'Email del usuario para recuperar contraseña',
   })
+  @NormalizeEmail()
   @IsEmail()
   @IsNotEmpty()
   email: string;

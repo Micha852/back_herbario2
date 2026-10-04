@@ -15,7 +15,6 @@
 
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -31,6 +30,10 @@ import { UsersService } from '../../users/users.service';
 import { UserRole } from '../../users/enums/user-role.enum';
 import { AuthService } from '../auth.service';
 import { CHAIRA_EMAIL_DOMAIN, CHAIRA_PROVIDER } from './chaira.constants';
+import {
+  assertEmailFree,
+  withEmailConflict,
+} from '../../../common/utils/email.util';
 
 const COMPLETE_PURPOSE = 'chaira-complete';
 
@@ -131,14 +134,16 @@ export class ChairaService {
       code: dto.code,
     });
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        email: dto.email,
-        password: await PasswordUtil.hash(dto.password),
-        ...(dto.name && { name: dto.name }),
-      },
-    });
+    await withEmailConflict(
+      this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          email: dto.email,
+          password: await PasswordUtil.hash(dto.password),
+          ...(dto.name && { name: dto.name }),
+        },
+      }),
+    );
     return this.users.findOne(userId);
   }
 
@@ -165,14 +170,7 @@ export class ChairaService {
     if (!user.email.endsWith(`@${CHAIRA_EMAIL_DOMAIN}`) || user.password) {
       throw new BadRequestException('Esta cuenta ya tiene correo y contraseña');
     }
-    if (email.endsWith(`@${CHAIRA_EMAIL_DOMAIN}`)) {
-      throw new BadRequestException('Usa un correo real');
-    }
-    const taken = await this.prisma.user.findUnique({
-      where: { email },
-      select: { id: true },
-    });
-    if (taken) throw new ConflictException('El correo ya está registrado');
+    await assertEmailFree(this.prisma, email, userId);
     return user;
   }
 

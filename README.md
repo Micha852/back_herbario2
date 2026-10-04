@@ -1,99 +1,160 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Herbario HUAZ — Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API del Herbario Digital de la Universidad de la Amazonia (Herbario 2.0, rehecho a partir del proyecto de grado HDUA).
+Funciona con el front [`front_herbario2`](https://github.com/Micha852/front_herbario2).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+**Stack:** NestJS 10 · Prisma 5 · PostgreSQL · Node 22.
 
-## Description
+## Qué hace
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **Muestras:** registro, edición, estados y taxonomía enlazada al nivel más bajo conocido (especie, género o familia).
+- **Imágenes:** subida con versiones automáticas (miniatura, mediana y grande). Las imágenes del sitio (fondo, logo, favicon) se borran cuando se reemplazan.
+- **Darwin Core:**
+  - Exportación a Excel o CSV con los 70 términos de la plantilla SiB Colombia / GBIF.
+  - Importación con vista previa y confirmación en una sola transacción. Los números de catálogo repetidos se omiten.
+- **Documentos PDF:** ficha técnica, etiqueta de herbario e informe por recolector.
+- **Usuarios y permisos:**
+  - **Administrador:** acceso total.
+  - **Colaborador:** sus permisos se ajustan por persona.
+  - **Visitante:** solo consulta y comenta.
+- **Cuentas:**
+  - El registro pide un código de verificación enviado al correo.
+  - Se puede entrar con Chairá, la plataforma de la universidad (opcional).
+  - Un correo solo puede pertenecer a una cuenta, sin importar mayúsculas.
+- **CMS:** páginas del sitio, página de inicio (fondo, logo, ícono de la pestaña, textos) y estadísticas públicas.
+- **Correo:** se configura desde el panel y la contraseña se guarda cifrada. Si no se configura en el panel, se usa `.env`.
 
-## Project setup
+## Requisitos
 
-```bash
-$ pnpm install
-```
+- Node 22 y npm
+- PostgreSQL 14 o superior
 
-## Compile and run the project
+## Desarrollo
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+npm install
+cp .env.example .env          # completa DATABASE_URL y los secretos JWT
+npx prisma migrate deploy     # crea las tablas
+npm run prisma:seed           # datos de prueba (ver abajo)
+npm run start:dev             # http://localhost:4000
 ```
 
-## Run tests
+- API: `http://localhost:4000/api/v1`. Salud: `GET /api/v1/health`.
+- Documentación interactiva (Swagger): `http://localhost:4000/api/docs`. Solo existe fuera de producción.
+
+### Usuarios de prueba (`npm run prisma:seed`)
+
+| Rol | Correo | Contraseña |
+|---|---|---|
+| Administrador | admin@uniamazonia.edu.co | Admin123 |
+| Colaborador | maria.garcia@uniamazonia.edu.co | Collab123 |
+| Visitante | carlos.rodriguez@unal.edu.co | Visit123 |
+
+> El seed **borra toda la base** antes de cargar los datos. Si la base ya tiene datos, se niega a correr a menos que se use `npm run prisma:seed -- --reset`.
+> Solo es para desarrollo y demos. En producción usa `create-admin` (siguiente sección).
+> Para agregar muestras de prueba sin borrar nada: `npm run prisma:seed:specimens`.
+
+### Correos en desarrollo
+
+Sin correo configurado (ni en el panel ni en `.env`), los correos se imprimen en la consola del back. Ahí aparecen, por ejemplo, los códigos de verificación del registro.
+En producción eso no pasa. Sin correo configurado:
+- el registro responde con un aviso;
+- la recuperación de contraseña no envía nada y deja la contraseña como estaba.
+
+## Producción con Docker
+
+`docker-compose.yml` levanta Postgres, el back y el front. Necesita las carpetas `back_herbario2` y `front_herbario2` una al lado de la otra.
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+cp .env.docker.example .env.docker      # completa los secretos
+docker compose up -d --build            # las migraciones se aplican al arrancar
+docker compose exec back npm run create-admin
 ```
 
-## Deployment
+1. **`create-admin`** crea el primer administrador. Pregunta el correo, el nombre y la contraseña, y no muestra la contraseña al escribirla. No borra nada.
+   Sin terminal interactiva, usa `--email`, `--name` y la variable de entorno `ADMIN_PASSWORD`.
+2. Luego, en el panel, configura **Correo**. Sin correo no funcionan el registro ni la recuperación de contraseña.
+3. `PUBLIC_API_URL` es la URL con la que el **navegador** llega al back. Se incrusta en el front al construirlo, así que si cambia hay que volver a construir el front.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Los datos quedan en dos volúmenes:
+- `pgdata`: la base.
+- `uploads`: las imágenes.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Esos dos volúmenes son lo que hay que respaldar.
+
+### Sin Docker
 
 ```bash
-$ pnpm install -g mau
-$ mau deploy
+npm ci && npx prisma generate && npm run build
+npx prisma migrate deploy
+npm run create-admin
+NODE_ENV=production node dist/main
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+En producción la app **no arranca** si los secretos JWT son cortos (menos de 32 caracteres), iguales entre sí o los valores de ejemplo.
 
-## Resources
+## Variables de entorno
 
-Check out a few resources that may come in handy when working with NestJS:
+Están todas en [`.env.example`](.env.example), con su explicación. Las principales:
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+| Variable | Para qué |
+|---|---|
+| `DATABASE_URL` | Conexión a PostgreSQL (obligatoria) |
+| `JWT_SECRET`, `JWT_REFRESH_SECRET` | Firmas de las sesiones (obligatorias y distintas) |
+| `CORS_ORIGIN`, `APP_URL` | URL del front (CORS y enlaces en los correos) |
+| `MAIL_*` | SMTP. Opcional si se configura desde el panel |
+| `CHAIRA_*` | Ingreso con Chairá. Sin `CHAIRA_CLIENT_ID` el botón no aparece |
+| `SETTINGS_ENCRYPTION_KEY` | Cifra la contraseña SMTP guardada en la base. Si no está, se usa `JWT_SECRET` |
 
-## Support
+## Pruebas
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+npm test                 # unitarias
+npm run test:e2e         # de punta a punta, contra una base real
+```
 
-## Stay in touch
+El e2e crea y borra datos. Por seguridad **solo corre si el nombre de la base contiene `test`, `e2e` o `ci`**; si no, se omite con un aviso. Para prepararlo:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```bash
+export DATABASE_URL="postgresql://usuario:clave@localhost:5432/herbario_e2e?schema=public"
+npx prisma migrate deploy
+npx ts-node prisma/seed.ts --reset
+npm run test:e2e
+```
 
-## License
+El e2e intercepta los correos: no envía nada real.
+La CI de GitHub Actions (`.github/workflows`) corre tipos, pruebas unitarias, build, migraciones sobre una base vacía y el e2e en cada push.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## Base de datos y migraciones
+
+- Esquema: `prisma/schema.prisma`. Migraciones: `prisma/migrations`. Nunca se editan las que ya están aplicadas.
+- Para crear una nueva: `npx prisma migrate dev --name descripcion`.
+  - En una terminal no interactiva, genera el SQL con `prisma migrate diff --from-url ... --to-schema-datamodel prisma/schema.prisma --script` en una carpeta fechada y aplícalo con `prisma migrate deploy`.
+- En Windows, si `prisma generate` falla con `EPERM`, detén el servidor de desarrollo, que bloquea el motor de Prisma, y vuelve a intentarlo.
+
+## Estructura
+
+```
+src/
+  common/        utilidades compartidas (correos, contraseñas, cifrado, taxonomía)
+  config/        validación de variables de entorno
+  database/      PrismaService
+  modules/
+    auth/        login, registro con código, Chairá, sesiones (JWT + refresh)
+    permissions/ permisos por rol y por colaborador
+    users/       gestión de usuarios (panel)
+    specimens/   muestras, búsqueda y mapa
+    images/      subida y versiones de imágenes
+    taxonomy/    familias, géneros y especies
+    catalogs/    catálogos genéricos (localidades, hábitats, …)
+    darwin-core/ exportación e importación Darwin Core
+    reports/     estadísticas, dashboard y PDFs
+    system-info/ CMS (páginas e inicio)
+    mail/        envío de correos y su configuración
+    comments/ feedback/ projects/ locations/ institutions/ genders/
+prisma/          esquema, migraciones, seed y create-admin
+test/            pruebas e2e
+docs/            hoja de ruta (ROADMAP_GENERAL.md) y bitácora
+```
+
+La hoja de ruta, las decisiones tomadas y la bitácora de avances están en [`docs/ROADMAP_GENERAL.md`](docs/ROADMAP_GENERAL.md).

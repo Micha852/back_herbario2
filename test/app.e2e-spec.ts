@@ -394,6 +394,69 @@ const COLLABORATOR = {
     });
   });
 
+  describe('un correo = una cuenta (sin importar mayúsculas)', () => {
+    it('no se registra un correo existente escrito con otras mayúsculas', () =>
+      request(http)
+        .post('/api/v1/auth/register/code')
+        .send({
+          name: 'Copia',
+          email: '  Carlos.Rodriguez@UNAL.edu.co ',
+          password: 'Prueba123',
+        })
+        .expect(409));
+
+    it('el login acepta el correo con otras mayúsculas', () =>
+      request(http)
+        .post('/api/v1/auth/login')
+        .send({ ...VISITOR, email: VISITOR.email.toUpperCase() })
+        .expect(201));
+
+    it('en mi perfil no puedo poner el correo de otra cuenta', () =>
+      request(http)
+        .patch('/api/v1/auth/profile')
+        .set(auth(visitorToken))
+        .send({ email: 'MARIA.GARCIA@uniamazonia.edu.co' })
+        .expect(409));
+
+    it('ni el dominio interno de Chairá', () =>
+      request(http)
+        .patch('/api/v1/auth/profile')
+        .set(auth(visitorToken))
+        .send({ email: 'visitante.chaira.1@chaira.local' })
+        .expect(400));
+
+    it('mi propio correo sí (y se guarda normalizado)', async () => {
+      const res = await request(http)
+        .patch('/api/v1/auth/profile')
+        .set(auth(visitorToken))
+        .send({ email: VISITOR.email.toUpperCase() })
+        .expect(200);
+      expect(res.body.email).toBe(VISITOR.email);
+    });
+
+    it('el admin tampoco crea ni edita usuarios con un correo ocupado', async () => {
+      await request(http)
+        .post('/api/v1/users')
+        .set(auth(adminToken))
+        .send({
+          name: 'Copia',
+          email: 'Juan.Perez@uniamazonia.edu.co',
+          role: 'VISITANTE',
+          password: 'Prueba123',
+        })
+        .expect(409);
+      const list = await request(http)
+        .get(`/api/v1/users?search=${COLLABORATOR.email}`)
+        .set(auth(adminToken))
+        .expect(200);
+      await request(http)
+        .patch(`/api/v1/users/${list.body.data[0].id}`)
+        .set(auth(adminToken))
+        .send({ email: ADMIN.email.toUpperCase() })
+        .expect(409);
+    });
+  });
+
   describe('imágenes del sitio (CMS)', () => {
     let original: string | null = null;
     const png = () =>

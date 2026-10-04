@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,6 +7,10 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { PasswordUtil } from '../../common/utils/password.util';
 import { escapeHtml } from '../../common/utils/html.util';
+import {
+  assertEmailFree,
+  withEmailConflict,
+} from '../../common/utils/email.util';
 import { MailService } from '../mail/mail.service';
 import { UserRole } from './enums/user-role.enum';
 import {
@@ -128,15 +131,6 @@ export class UsersAdminService {
     return role.id;
   }
 
-  private async assertEmailFree(email: string, exceptId?: string) {
-    const existing = await this.prisma.user.findUnique({
-      where: { email },
-      select: { id: true },
-    });
-    if (existing && existing.id !== exceptId)
-      throw new ConflictException('El correo ya está registrado');
-  }
-
   /** Envía las credenciales (sin SMTP en desarrollo: se muestran en la consola del back) */
   private async sendCredentials(
     to: string,
@@ -166,25 +160,27 @@ export class UsersAdminService {
   }
 
   async create(dto: AdminCreateUserDto) {
-    await this.assertEmailFree(dto.email);
+    await assertEmailFree(this.prisma, dto.email);
     const roleId = await this.roleId(dto.role);
     const temporaryPassword = dto.password ? null : generateTemporaryPassword();
     const password = await PasswordUtil.hash(
       dto.password ?? temporaryPassword!,
     );
 
-    const user = await this.prisma.user.create({
-      data: {
-        name: dto.name,
-        email: dto.email,
-        password,
-        roleId,
-        isCollector: dto.isCollector ?? false,
-        institutionId: dto.institutionId,
-        genderId: dto.genderId,
-      },
-      select: userSelect,
-    });
+    const user = await withEmailConflict(
+      this.prisma.user.create({
+        data: {
+          name: dto.name,
+          email: dto.email,
+          password,
+          roleId,
+          isCollector: dto.isCollector ?? false,
+          institutionId: dto.institutionId,
+          genderId: dto.genderId,
+        },
+        select: userSelect,
+      }),
+    );
 
     const emailSent = temporaryPassword
       ? await this.sendCredentials(
@@ -221,7 +217,7 @@ export class UsersAdminService {
     });
     if (error) throw new BadRequestException(error);
 
-    if (dto.email) await this.assertEmailFree(dto.email, id);
+    if (dto.email) await assertEmailFree(this.prisma, dto.email, id);
     const roleChanged =
       dto.role !== undefined && dto.role !== current.role.name;
 
@@ -241,13 +237,15 @@ export class UsersAdminService {
       }),
     };
 
-    const [user] = await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id }, data, select: userSelect }),
-      // Al cambiar de rol se descartan los ajustes de permisos (arranca con los del rol nuevo)
-      ...(roleChanged
-        ? [this.prisma.userPermission.deleteMany({ where: { userId: id } })]
-        : []),
-    ]);
+    const [user] = await withEmailConflict(
+      this.prisma.$transaction([
+        this.prisma.user.update({ where: { id }, data, select: userSelect }),
+        // Al cambiar de rol se descartan los ajustes de permisos (arranca con los del rol nuevo)
+        ...(roleChanged
+          ? [this.prisma.userPermission.deleteMany({ where: { userId: id } })]
+          : []),
+      ]),
+    );
     return present(user);
   }
 
