@@ -13,8 +13,10 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as request from 'supertest';
+import * as sharp from 'sharp';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
+import { MailService } from '../src/modules/mail/mail.service';
 
 const dbName =
   (process.env.DATABASE_URL ?? '').split('/').pop()?.split('?')[0] ?? '';
@@ -22,14 +24,31 @@ const SAFE_DB = /test|e2e|ci/i.test(dbName);
 
 const ADMIN = { email: 'admin@uniamazonia.edu.co', password: 'Admin123' };
 const VISITOR = { email: 'carlos.rodriguez@unal.edu.co', password: 'Visit123' };
+const COLLABORATOR = {
+  email: 'maria.garcia@uniamazonia.edu.co',
+  password: 'Collab123',
+};
 
 (SAFE_DB ? describe : describe.skip)('Herbario (e2e)', () => {
   let app: INestApplication;
   let http: ReturnType<INestApplication['getHttpServer']>;
   let adminToken: string;
   let visitorToken: string;
+  let collaboratorToken: string;
   let specimenId: string;
   const catalogNumber = `E2E-${Date.now()}`;
+  /** Todo lo que se crea aquí se borra al final (muestras, usuarios, imágenes) */
+  const created = {
+    specimens: [] as string[],
+    users: [] as string[],
+    images: [] as string[],
+  };
+  /** Correos "enviados": se interceptan para leer los códigos y no mandar nada real */
+  let sentMail: jest.SpyInstance;
+  const lastCode = () => {
+    const subject: string = sentMail.mock.calls.at(-1)?.[0]?.subject ?? '';
+    return subject.match(/\d{6}/)?.[0] ?? '';
+  };
 
   const login = async (credentials: { email: string; password: string }) => {
     // POST sin @HttpCode: Nest responde 201
@@ -49,16 +68,21 @@ const VISITOR = { email: 'carlos.rodriguez@unal.edu.co', password: 'Visit123' };
     configureApp(app);
     await app.init();
     http = app.getHttpServer();
+    sentMail = jest
+      .spyOn(app.get(MailService), 'sendMail')
+      .mockResolvedValue(undefined as never);
     adminToken = await login(ADMIN);
     visitorToken = await login(VISITOR);
+    collaboratorToken = await login(COLLABORATOR);
   });
 
   afterAll(async () => {
-    if (specimenId) {
-      await request(http)
-        .delete(`/api/v1/specimens/${specimenId}`)
-        .set(auth(adminToken));
-    }
+    const del = (path: string) =>
+      request(http).delete(`/api/v1/${path}`).set(auth(adminToken));
+    for (const id of [specimenId, ...created.specimens].filter(Boolean))
+      await del(`specimens/${id}`);
+    for (const id of created.images) await del(`images/${id}`);
+    for (const id of created.users) await del(`users/${id}`);
     await app?.close();
   });
 
@@ -223,6 +247,215 @@ const VISITOR = { email: 'carlos.rodriguez@unal.edu.co', password: 'Visit123' };
         .set(auth(visitorToken))
         .attach('file', Buffer.from(csv), 'prueba.csv')
         .expect(403));
+
+    it('al confirmar importa solo lo nuevo y enlaza la taxonomía', async () => {
+      const res = await request(http)
+        .post('/api/v1/darwin-core/import')
+        .set(auth(adminToken))
+        .field('commit', 'true')
+        .attach('file', Buffer.from(csv), 'prueba.csv')
+        .expect(200);
+      expect(res.body.committed).toBe(true);
+      expect(res.body.summary).toMatchObject({ imported: 1, duplicates: 1 });
+
+      const list = await request(http)
+        .get(`/api/v1/specimens?search=${catalogNumber}-IMP`)
+        .expect(200);
+      expect(list.body.data).toHaveLength(1);
+      created.specimens.push(list.body.data[0].id);
+
+      const detail = await request(http)
+        .get(`/api/v1/specimens/${list.body.data[0].id}`)
+        .expect(200);
+      expect(detail.body.source).toBe('IMPORT');
+      expect(JSON.stringify(detail.body)).toContain('Piperaceae');
+    });
+
+    it('reimportar el mismo archivo no duplica', async () => {
+      const res = await request(http)
+        .post('/api/v1/darwin-core/import')
+        .set(auth(adminToken))
+        .field('commit', 'true')
+        .attach('file', Buffer.from(csv), 'prueba.csv')
+        .expect(200);
+      expect(res.body.summary).toMatchObject({ imported: 0, duplicates: 2 });
+    });
+  });
+
+  describe('mapa', () => {
+    it('agrupa la muestra en sus coordenadas (nunca en 0,0)', async () => {
+      const res = await request(http)
+        .get(`/api/v1/specimens/map?search=${catalogNumber}`)
+        .expect(200);
+      const group = res.body.groups.find((g: { specimens: { id: string }[] }) =>
+        g.specimens.some((s) => s.id === specimenId),
+      );
+      expect(group).toMatchObject({ lat: 1.61438, lng: -75.6062317 });
+      // La importada no tiene coordenadas: cuenta aparte, sin punto falso
+      expect(res.body.withoutCoordinates).toBeGreaterThanOrEqual(1);
+      expect(
+        res.body.groups.some(
+          (g: { lat: number; lng: number }) => g.lat === 0 && g.lng === 0,
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('permisos del colaborador', () => {
+    it('puede crear muestras', async () => {
+      const res = await request(http)
+        .post('/api/v1/specimens')
+        .set(auth(collaboratorToken))
+        .send({
+          scientificName: 'Inga edulis',
+          catalogNumber: `${catalogNumber}-COL`,
+        })
+        .expect(201);
+      created.specimens.push(res.body.id);
+    });
+
+    it('exporta (trae "Generar informes" por defecto)', () =>
+      request(http)
+        .get('/api/v1/darwin-core/export?format=csv')
+        .set(auth(collaboratorToken))
+        .expect(200));
+
+    it('no puede importar ni editar el sitio', async () => {
+      await request(http)
+        .post('/api/v1/darwin-core/import')
+        .set(auth(collaboratorToken))
+        .attach('file', Buffer.from('catalogNumber\r\nX'), 'x.csv')
+        .expect(403);
+      await request(http)
+        .put('/api/v1/system-info/inicio')
+        .set(auth(collaboratorToken))
+        .send({ content: '{}' })
+        .expect(403);
+    });
+
+    it('no puede listar usuarios', () =>
+      request(http)
+        .get('/api/v1/users')
+        .set(auth(collaboratorToken))
+        .expect(403));
+  });
+
+  describe('registro con código al correo', () => {
+    const email = `e2e.${Date.now()}@example.com`;
+    const account = { name: 'Persona E2E', email, password: 'Prueba123' };
+
+    it('paso 1 envía un código de 6 dígitos al correo', async () => {
+      await request(http)
+        .post('/api/v1/auth/register/code')
+        .send(account)
+        .expect(200);
+      expect(sentMail).toHaveBeenLastCalledWith(
+        expect.objectContaining({ to: email }),
+      );
+      expect(lastCode()).toMatch(/^\d{6}$/);
+    });
+
+    it('un código incorrecto no crea la cuenta', async () => {
+      const wrong = lastCode() === '000000' ? '111111' : '000000';
+      await request(http)
+        .post('/api/v1/auth/register')
+        .send({ ...account, code: wrong })
+        .expect(400);
+      await request(http)
+        .post('/api/v1/auth/login')
+        .send({ email, password: account.password })
+        .expect(401);
+    });
+
+    it('con el código correcto crea un visitante y entra', async () => {
+      const res = await request(http)
+        .post('/api/v1/auth/register')
+        .send({ ...account, code: lastCode() })
+        .expect(201);
+      expect(res.body.accessToken).toBeTruthy();
+      const profile = await request(http)
+        .get('/api/v1/auth/profile')
+        .set(auth(res.body.accessToken))
+        .expect(200);
+      created.users.push(profile.body.id);
+      expect(JSON.stringify(profile.body.role)).toContain('VISITANTE');
+      expect(profile.body.permissions).not.toContain('specimens.create');
+    });
+
+    it('el código es de un solo uso y el correo ya no está libre', async () => {
+      await request(http)
+        .post('/api/v1/auth/register')
+        .send({ ...account, code: lastCode() })
+        .expect((r) => expect([400, 409]).toContain(r.status));
+      await request(http)
+        .post('/api/v1/auth/register/code')
+        .send(account)
+        .expect(409);
+    });
+  });
+
+  describe('imágenes del sitio (CMS)', () => {
+    let original: string | null = null;
+    const png = () =>
+      sharp({
+        create: { width: 64, height: 64, channels: 4, background: '#2e7d32' },
+      })
+        .png()
+        .toBuffer();
+    const upload = async (token: string) => {
+      const res = await request(http)
+        .post('/api/v1/images/upload')
+        .set(auth(token))
+        .attach('file', await png(), 'logo.png')
+        .expect(201);
+      created.images.push(res.body.id);
+      return res.body.id as string;
+    };
+    const saveHome = (logoImageId: string | null) =>
+      request(http)
+        .put('/api/v1/system-info/inicio')
+        .set(auth(adminToken))
+        .send({ content: JSON.stringify({ logoImageId }) })
+        .expect(200);
+
+    beforeAll(async () => {
+      const res = await request(http).get('/api/v1/system-info/inicio');
+      original = res.status === 200 ? res.body.content : null;
+    });
+    afterAll(async () => {
+      // Deja la configuración como estaba (sin imágenes de esta prueba)
+      if (original !== null)
+        await request(http)
+          .put('/api/v1/system-info/inicio')
+          .set(auth(adminToken))
+          .send({ content: original });
+    });
+
+    it('un visitante no puede subir imágenes', async () =>
+      request(http)
+        .post('/api/v1/images/upload')
+        .set(auth(visitorToken))
+        .attach('file', await png(), 'logo.png')
+        .expect(403));
+
+    it('al reemplazar el logo, el anterior se borra (no quedan huérfanas)', async () => {
+      const first = await upload(adminToken);
+      await saveHome(first);
+      await request(http)
+        .get(`/api/v1/images/${first}?version=thumbnail`)
+        .expect(200);
+
+      const second = await upload(adminToken);
+      await saveHome(second);
+      await request(http).get(`/api/v1/images/${first}/metadata`).expect(404);
+      await request(http)
+        .get(`/api/v1/images/${second}?version=large`)
+        .expect(200);
+
+      // Quitar el logo (volver al predeterminado) también lo borra
+      await saveHome(null);
+      await request(http).get(`/api/v1/images/${second}/metadata`).expect(404);
+    });
   });
 });
 
