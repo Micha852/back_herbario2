@@ -23,7 +23,8 @@
     "prisma:migrate:prod": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "ts-node prisma/seed.ts",
-    "prisma:seed:specimens": "ts-node prisma/seed-specimens.ts"
+    "prisma:seed:specimens": "ts-node prisma/seed-specimens.ts",
+    "create-admin": "ts-node prisma/create-admin.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

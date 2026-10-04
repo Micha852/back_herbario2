@@ -2,8 +2,12 @@
 # Requiere las dos carpetas lado a lado (back_herbario2 y front_herbario2).
 #
 #   cp .env.docker.example .env.docker   # y completa los secretos
-#   docker compose up -d --build
-#   docker compose exec back npm run prisma:seed   # opcional: datos iniciales
+#   docker compose up -d --build                    # las migraciones se aplican al arrancar
+#   docker compose exec back npm run create-admin   # primer administrador (pregunta los datos)
+#   Luego, en el panel: Correo (obligatorio para registro y recuperar contraseña).
+#
+# Solo para demos/pruebas (BORRA TODO y crea usuarios con contraseñas conocidas):
+#   docker compose exec back npm run prisma:seed -- --reset
 #
 # Front: http://localhost:3000 · API: http://localhost:4000/api/v1 · Swagger: /api/docs
 

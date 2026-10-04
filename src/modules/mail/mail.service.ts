@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { PrismaService } from '../../database/prisma.service';
@@ -263,7 +268,10 @@ export class MailService {
 
     if (!smtp) {
       if (this.configService.get<string>('NODE_ENV') === 'production') {
-        throw new Error('El correo no está configurado (panel → Correo)');
+        // 503 con mensaje claro (antes un 500 genérico): el código no puede quedar solo en el log
+        throw new ServiceUnavailableException(
+          'El envío de correos no está configurado. Avisa al administrador del herbario (Panel → Correo).',
+        );
       }
       const text = options.html
         .replace(/<br\s*\/?>/gi, '\n')
