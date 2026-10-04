@@ -29,6 +29,8 @@ services:
 
   back:
     build: .
+    # init: reenvía las señales de apagado (docker stop) para que Node cierre limpio y no a los 10 s
+    init: true
     restart: unless-stopped
     env_file: .env.docker
     environment:
@@ -43,6 +45,7 @@ services:
         condition: service_healthy
 
   front:
+    init: true
     build:
       context: ../front_herbario2
       args:
