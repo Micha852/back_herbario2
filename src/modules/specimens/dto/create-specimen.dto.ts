@@ -2,7 +2,6 @@ import {
   IsString,
   IsOptional,
   IsBoolean,
-  IsUUID,
   IsDateString,
   IsInt,
   IsNumber,
@@ -13,6 +12,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { IsId } from '../../../common/utils/id.util';
 
 export class CreateSpecimenDto {
   @ApiProperty({
@@ -81,51 +81,55 @@ export class CreateSpecimenDto {
   // Si llegan varios, gana el más bajo; el resto de la jerarquía sale de ese nivel.
   @ApiPropertyOptional({ description: 'Especie' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   speciesId?: string;
 
-  @ApiPropertyOptional({ description: 'Género (si se identificó solo hasta género)' })
+  @ApiPropertyOptional({
+    description: 'Género (si se identificó solo hasta género)',
+  })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   genusId?: string;
 
-  @ApiPropertyOptional({ description: 'Familia (si se identificó solo hasta familia)' })
+  @ApiPropertyOptional({
+    description: 'Familia (si se identificó solo hasta familia)',
+  })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   familyId?: string;
 
   // Location
   @ApiPropertyOptional({ description: 'Location ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   locationId?: string;
 
   // Leaf characteristics
   @ApiPropertyOptional({ description: 'Venation type ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   venationTypeId?: string;
 
   @ApiPropertyOptional({ description: 'Form type ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   formTypeId?: string;
 
   @ApiPropertyOptional({ description: 'Margin type ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   marginTypeId?: string;
 
   // Origin
   @ApiPropertyOptional({ description: 'Origin ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   originId?: string;
 
   // Project
   @ApiPropertyOptional({ description: 'Project ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   projectId?: string;
 
   // Additional fields
@@ -145,12 +149,12 @@ export class CreateSpecimenDto {
 
   @ApiPropertyOptional({ description: 'Condition ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   conditionId?: string;
 
   @ApiPropertyOptional({ description: 'Origin type ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   originTypeId?: string;
 
   @ApiPropertyOptional({
@@ -173,7 +177,7 @@ export class CreateSpecimenDto {
 
   @ApiPropertyOptional({ description: 'Habitat ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   habitatId?: string;
 
   @ApiPropertyOptional({
@@ -205,7 +209,8 @@ export class CreateSpecimenDto {
   registryNumber?: string;
 
   @ApiPropertyOptional({
-    description: 'Autor del nombre científico (Darwin Core: scientificNameAuthorship)',
+    description:
+      'Autor del nombre científico (Darwin Core: scientificNameAuthorship)',
     example: '(Willd.) Britton & Rose',
     maxLength: 200,
   })
@@ -246,7 +251,9 @@ export class CreateSpecimenDto {
   @IsString()
   identificationNotes?: string;
 
-  @ApiPropertyOptional({ description: 'Notas de campo (Darwin Core: fieldNotes)' })
+  @ApiPropertyOptional({
+    description: 'Notas de campo (Darwin Core: fieldNotes)',
+  })
   @IsOptional()
   @IsString()
   fieldNotes?: string;
@@ -272,6 +279,6 @@ export class CreateSpecimenDto {
     type: [String],
   })
   @IsOptional()
-  @IsUUID('4', { each: true })
+  @IsId({ each: true })
   collectorIds?: string[];
 }

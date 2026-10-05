@@ -9,7 +9,6 @@ import {
   Query,
   HttpStatus,
   UseGuards,
-  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,6 +24,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { ParseIdPipe } from '../../common/utils/id.util';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserEntity } from '../users/entities/user.entity';
 import { PERMISSIONS } from '../permissions/permissions.constants';
@@ -33,7 +33,8 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 
 /** Ve comentarios de muestras inactivas quien puede ver muestras inactivas */
-const isStaff = (user: UserEntity | null) => hasPermission(user?.permissions, PERMISSIONS.SPECIMENS_STATUS);
+const isStaff = (user: UserEntity | null) =>
+  hasPermission(user?.permissions, PERMISSIONS.SPECIMENS_STATUS);
 
 @ApiTags('Comments')
 @Controller('comments')
@@ -68,7 +69,8 @@ export class CommentsController {
   @Get()
   @ApiOperation({
     summary: 'Get comments by specimen ID',
-    description: 'Returns all comments for a specimen. Public endpoint (inactive specimens only for ADMIN/COLLABORATOR).',
+    description:
+      'Returns all comments for a specimen. Public endpoint (inactive specimens only for ADMIN/COLLABORATOR).',
   })
   @ApiQuery({
     name: 'specimenId',
@@ -80,7 +82,7 @@ export class CommentsController {
     description: 'Comments retrieved successfully',
   })
   findBySpecimen(
-    @Query('specimenId', new ParseUUIDPipe()) specimenId: string,
+    @Query('specimenId', ParseIdPipe) specimenId: string,
     @CurrentUser() user: UserEntity | null,
   ) {
     return this.commentsService.findBySpecimen(specimenId, isStaff(user));
@@ -111,7 +113,8 @@ export class CommentsController {
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a comment',
-    description: 'Updates comment text. Only the author can edit their own comment.',
+    description:
+      'Updates comment text. Only the author can edit their own comment.',
   })
   @ApiParam({ name: 'id', description: 'Comment UUID' })
   @ApiResponse({
@@ -143,7 +146,8 @@ export class CommentsController {
   @Delete(':id')
   @ApiOperation({
     summary: 'Delete a comment',
-    description: 'Deletes a comment. The author can delete their own comments; users with comments.moderate can delete any.',
+    description:
+      'Deletes a comment. The author can delete their own comments; users with comments.moderate can delete any.',
   })
   @ApiParam({ name: 'id', description: 'Comment UUID' })
   @ApiResponse({
@@ -164,7 +168,10 @@ export class CommentsController {
   })
   remove(@Param('id') id: string, @CurrentUser() user: UserEntity) {
     // Borrar comentarios ajenos = moderación (permiso comments.moderate)
-    const canModerate = hasPermission(user.permissions, PERMISSIONS.COMMENTS_MODERATE);
+    const canModerate = hasPermission(
+      user.permissions,
+      PERMISSIONS.COMMENTS_MODERATE,
+    );
     return this.commentsService.remove(id, user.id, canModerate);
   }
 }

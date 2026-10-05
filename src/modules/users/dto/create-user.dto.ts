@@ -3,13 +3,13 @@ import {
   IsString,
   IsOptional,
   IsBoolean,
-  IsUUID,
   MinLength,
   MaxLength,
   Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { NormalizeEmail } from '../../../common/utils/email.util';
+import { IsId } from '../../../common/utils/id.util';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -50,7 +50,7 @@ export class CreateUserDto {
     example: '550e8400-e29b-41d4-a716-446655440000',
   })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   roleId?: string;
 
   @ApiPropertyOptional({
@@ -58,7 +58,7 @@ export class CreateUserDto {
     example: '550e8400-e29b-41d4-a716-446655440001',
   })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   genderId?: string;
 
   @ApiPropertyOptional({
@@ -66,7 +66,7 @@ export class CreateUserDto {
     example: '550e8400-e29b-41d4-a716-446655440002',
   })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   typeId?: string;
 
   @ApiPropertyOptional({
@@ -74,7 +74,7 @@ export class CreateUserDto {
     example: '550e8400-e29b-41d4-a716-446655440003',
   })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   institutionId?: string;
 
   @ApiPropertyOptional({

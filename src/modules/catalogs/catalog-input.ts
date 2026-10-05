@@ -5,8 +5,8 @@
  */
 
 import { Prisma } from '@prisma/client';
-import { isUUID } from 'class-validator';
 import { CatalogDefinition, CatalogField } from './catalog-definitions';
+import { isId } from '../../common/utils/id.util';
 
 export type CatalogInput = Record<string, unknown>;
 
@@ -119,7 +119,7 @@ function parseField(
     }
 
     case 'ref': {
-      if (typeof raw !== 'string' || !isUUID(raw)) {
+      if (typeof raw !== 'string' || !isId(raw)) {
         errors.push(`${label} no es válido`);
         return undefined;
       }

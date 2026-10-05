@@ -34,7 +34,6 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { UserEntity } from '../users/entities/user.entity';
 import { IMAGE_TYPES, UpdateImageDto } from './dto/update-image.dto';
-import { isUUID } from 'class-validator';
 import { SkipThrottle } from '@nestjs/throttler';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { PermissionsGuard } from '../permissions/permissions.guard';
@@ -42,6 +41,7 @@ import { RequirePermissions } from '../permissions/require-permissions.decorator
 import { PERMISSIONS } from '../permissions/permissions.constants';
 import { PermissionsService } from '../permissions/permissions.service';
 import { hasPermission } from '../permissions/permissions.logic';
+import { isId } from '../../common/utils/id.util';
 
 @ApiTags('Images')
 @Controller('images')
@@ -56,10 +56,16 @@ export class ImagesController {
    * Imágenes sin muestra asociada (del sitio, p. ej. fondo y logo del inicio):
    * con specimens.edit_any o cms.edit.
    */
-  private async assertCanEditImage(user: UserEntity, imageId: string): Promise<void> {
+  private async assertCanEditImage(
+    user: UserEntity,
+    imageId: string,
+  ): Promise<void> {
     const image = await this.imagesService.getImage(imageId);
     if (image.specimenId) {
-      await this.permissionsService.assertCanEditSpecimen(user, image.specimenId);
+      await this.permissionsService.assertCanEditSpecimen(
+        user,
+        image.specimenId,
+      );
     } else if (
       !hasPermission(user.permissions, PERMISSIONS.SPECIMENS_EDIT_ANY) &&
       !hasPermission(user.permissions, PERMISSIONS.CMS_EDIT)
@@ -70,7 +76,12 @@ export class ImagesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   // Sin specimenId son imágenes del sitio (fondo y logo del inicio, desde el CMS)
-  @RequirePermissions(PERMISSIONS.SPECIMENS_CREATE, PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN, PERMISSIONS.CMS_EDIT)
+  @RequirePermissions(
+    PERMISSIONS.SPECIMENS_CREATE,
+    PERMISSIONS.SPECIMENS_EDIT_ANY,
+    PERMISSIONS.SPECIMENS_EDIT_OWN,
+    PERMISSIONS.CMS_EDIT,
+  )
   @ApiBearerAuth()
   @Post('upload')
   @ApiOperation({
@@ -79,8 +90,17 @@ export class ImagesController {
       'Uploads an image and automatically generates thumbnail, medium, and large versions',
   })
   @ApiConsumes('multipart/form-data')
-  @ApiQuery({ name: 'specimenId', required: false, description: 'Associate with specimen' })
-  @ApiQuery({ name: 'imageType', required: false, enum: IMAGE_TYPES, description: 'Image type (habit, leaf, flower, etc.)' })
+  @ApiQuery({
+    name: 'specimenId',
+    required: false,
+    description: 'Associate with specimen',
+  })
+  @ApiQuery({
+    name: 'imageType',
+    required: false,
+    enum: IMAGE_TYPES,
+    description: 'Image type (habit, leaf, flower, etc.)',
+  })
   @ApiQuery({ name: 'caption', required: false, description: 'Image caption' })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -95,7 +115,9 @@ export class ImagesController {
       fileFilter: (req, file, callback) => {
         if (!file.mimetype.match(/^image\/(jpeg|jpg|png|webp)$/)) {
           return callback(
-            new BadRequestException('Only image files are allowed (jpeg, png, webp)'),
+            new BadRequestException(
+              'Only image files are allowed (jpeg, png, webp)',
+            ),
             false,
           );
         }
@@ -113,17 +135,21 @@ export class ImagesController {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
-    if (specimenId && !isUUID(specimenId)) {
+    if (specimenId && !isId(specimenId)) {
       throw new BadRequestException('specimenId must be a UUID');
     }
     if (imageType && !(IMAGE_TYPES as readonly string[]).includes(imageType)) {
-      throw new BadRequestException(`imageType must be one of: ${IMAGE_TYPES.join(', ')}`);
+      throw new BadRequestException(
+        `imageType must be one of: ${IMAGE_TYPES.join(', ')}`,
+      );
     }
     if (specimenId) {
       await this.permissionsService.assertCanEditSpecimen(user, specimenId);
     }
     if (caption && caption.length > 255) {
-      throw new BadRequestException('caption must be shorter than or equal to 255 characters');
+      throw new BadRequestException(
+        'caption must be shorter than or equal to 255 characters',
+      );
     }
 
     return this.imagesService.uploadImage(
@@ -150,15 +176,44 @@ export class ImagesController {
     enum: ['original', 'thumbnail', 'medium', 'large'],
     description: 'Pre-generated image version',
   })
-  @ApiQuery({ name: 'width', required: false, type: Number, description: 'Resize width (on-the-fly)' })
-  @ApiQuery({ name: 'height', required: false, type: Number, description: 'Resize height (on-the-fly)' })
-  @ApiQuery({ name: 'quality', required: false, type: Number, description: 'Quality 1-100 (on-the-fly)' })
-  @ApiQuery({ name: 'format', required: false, enum: ['webp', 'jpeg', 'png'], description: 'Output format' })
-  @ApiQuery({ name: 'crop', required: false, enum: ['cover', 'contain', 'fill'], description: 'Crop mode' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Image retrieved successfully' })
+  @ApiQuery({
+    name: 'width',
+    required: false,
+    type: Number,
+    description: 'Resize width (on-the-fly)',
+  })
+  @ApiQuery({
+    name: 'height',
+    required: false,
+    type: Number,
+    description: 'Resize height (on-the-fly)',
+  })
+  @ApiQuery({
+    name: 'quality',
+    required: false,
+    type: Number,
+    description: 'Quality 1-100 (on-the-fly)',
+  })
+  @ApiQuery({
+    name: 'format',
+    required: false,
+    enum: ['webp', 'jpeg', 'png'],
+    description: 'Output format',
+  })
+  @ApiQuery({
+    name: 'crop',
+    required: false,
+    enum: ['cover', 'contain', 'fill'],
+    description: 'Crop mode',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Image retrieved successfully',
+  })
   async getImage(
     @Param('id') id: string,
-    @Query('version') version: 'original' | 'thumbnail' | 'medium' | 'large' = 'original',
+    @Query('version')
+    version: 'original' | 'thumbnail' | 'medium' | 'large' = 'original',
     @Query() transformations: TransformImageDto,
     @Res() res: Response,
   ): Promise<void> {
@@ -172,7 +227,7 @@ export class ImagesController {
       'Content-Type': mimeType,
       'Content-Length': buffer.length,
       'Cache-Control': 'public, max-age=31536000, immutable', // Cache 1 year
-      'ETag': `"${id}-${version}"`,
+      ETag: `"${id}-${version}"`,
     });
 
     res.send(buffer);
@@ -183,7 +238,10 @@ export class ImagesController {
   @Get(':id/metadata')
   @ApiOperation({ summary: 'Get image metadata' })
   @ApiParam({ name: 'id', description: 'Image UUID' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Image metadata retrieved' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Image metadata retrieved',
+  })
   async getImageMetadata(@Param('id') id: string) {
     const image = await this.imagesService.getImage(id);
     return {
@@ -199,7 +257,9 @@ export class ImagesController {
       createdAt: image.createdAt,
       urls: {
         original: this.imagesService.getImageUrl(image.id),
-        thumbnail: this.imagesService.getImageUrl(image.id, { version: 'thumbnail' }),
+        thumbnail: this.imagesService.getImageUrl(image.id, {
+          version: 'thumbnail',
+        }),
         medium: this.imagesService.getImageUrl(image.id, { version: 'medium' }),
         large: this.imagesService.getImageUrl(image.id, { version: 'large' }),
       },
@@ -207,7 +267,10 @@ export class ImagesController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
+  @RequirePermissions(
+    PERMISSIONS.SPECIMENS_EDIT_ANY,
+    PERMISSIONS.SPECIMENS_EDIT_OWN,
+  )
   @ApiBearerAuth()
   @Patch(':id')
   @ApiOperation({ summary: 'Update image metadata (caption, type, order)' })
@@ -223,26 +286,42 @@ export class ImagesController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN)
+  @RequirePermissions(
+    PERMISSIONS.SPECIMENS_EDIT_ANY,
+    PERMISSIONS.SPECIMENS_EDIT_OWN,
+  )
   @ApiBearerAuth()
   @Patch(':id/primary')
   @ApiOperation({ summary: 'Set as primary image of its specimen' })
   @ApiParam({ name: 'id', description: 'Image UUID' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Primary image set' })
-  async setPrimaryImage(@Param('id') id: string, @CurrentUser() user: UserEntity) {
+  async setPrimaryImage(
+    @Param('id') id: string,
+    @CurrentUser() user: UserEntity,
+  ) {
     await this.assertCanEditImage(user, id);
     await this.imagesService.setPrimaryImage(id);
     return { message: 'Primary image set successfully' };
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.SPECIMENS_EDIT_ANY, PERMISSIONS.SPECIMENS_EDIT_OWN, PERMISSIONS.CMS_EDIT)
+  @RequirePermissions(
+    PERMISSIONS.SPECIMENS_EDIT_ANY,
+    PERMISSIONS.SPECIMENS_EDIT_OWN,
+    PERMISSIONS.CMS_EDIT,
+  )
   @ApiBearerAuth()
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete image permanently (files + record). To hide it instead, PATCH isActive=false' })
+  @ApiOperation({
+    summary:
+      'Delete image permanently (files + record). To hide it instead, PATCH isActive=false',
+  })
   @ApiParam({ name: 'id', description: 'Image UUID' })
   @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Image deleted' })
-  async deleteImage(@Param('id') id: string, @CurrentUser() user: UserEntity): Promise<void> {
+  async deleteImage(
+    @Param('id') id: string,
+    @CurrentUser() user: UserEntity,
+  ): Promise<void> {
     await this.assertCanEditImage(user, id);
     await this.imagesService.deleteImage(id);
   }
@@ -252,7 +331,8 @@ export class ImagesController {
   @Get('specimen/:specimenId')
   @ApiOperation({
     summary: 'Get all images for a specimen',
-    description: 'Public: only enabled images. Users who can edit the specimen can pass includeInactive=true to also get disabled ones.',
+    description:
+      'Public: only enabled images. Users who can edit the specimen can pass includeInactive=true to also get disabled ones.',
   })
   @ApiParam({ name: 'specimenId', description: 'Specimen UUID' })
   @ApiQuery({ name: 'includeInactive', required: false, type: Boolean })
@@ -269,7 +349,10 @@ export class ImagesController {
         .then(() => true)
         .catch(() => false);
     }
-    const images = await this.imagesService.getImagesBySpecimen(specimenId, canSeeDisabled);
+    const images = await this.imagesService.getImagesBySpecimen(
+      specimenId,
+      canSeeDisabled,
+    );
     return images.map((image) => ({
       id: image.id,
       originalName: image.originalName,
@@ -280,7 +363,9 @@ export class ImagesController {
       sortOrder: image.sortOrder,
       urls: {
         original: this.imagesService.getImageUrl(image.id),
-        thumbnail: this.imagesService.getImageUrl(image.id, { version: 'thumbnail' }),
+        thumbnail: this.imagesService.getImageUrl(image.id, {
+          version: 'thumbnail',
+        }),
         medium: this.imagesService.getImageUrl(image.id, { version: 'medium' }),
       },
     }));

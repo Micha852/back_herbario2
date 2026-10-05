@@ -2,11 +2,11 @@ import {
   IsString,
   IsOptional,
   IsBoolean,
-  IsUUID,
   IsDateString,
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsId } from '../../../common/utils/id.util';
 
 export class CreateProjectDto {
   @ApiProperty({
@@ -56,7 +56,7 @@ export class CreateProjectDto {
     description: 'Protocol ID',
   })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   protocolId?: string;
 
   @ApiPropertyOptional({

@@ -6,7 +6,6 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -33,6 +32,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from './enums/user-role.enum';
+import { ParseIdPipe } from '../../common/utils/id.util';
 
 /**
  * Gestión de usuarios: exclusiva del ADMINISTRADOR (no se delega como permiso),
@@ -92,7 +92,7 @@ export class UsersController {
   @ApiBearerAuth()
   @Get(':id')
   @ApiOperation({ summary: 'Obtener usuario' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
+  findOne(@Param('id', ParseIdPipe) id: string) {
     return this.usersAdminService.findOne(id);
   }
 
@@ -106,7 +106,7 @@ export class UsersController {
       'Un admin no puede quitarse su rol ni desactivarse, y siempre debe quedar al menos un admin activo.',
   })
   update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseIdPipe) id: string,
     @Body() dto: AdminUpdateUserDto,
     @CurrentUser() admin: UserEntity,
   ) {
@@ -122,7 +122,7 @@ export class UsersController {
     summary:
       'Restablecer contraseña (genera una temporal y la envía por correo)',
   })
-  resetPassword(@Param('id', ParseUUIDPipe) id: string) {
+  resetPassword(@Param('id', ParseIdPipe) id: string) {
     return this.usersAdminService.resetPassword(id);
   }
 
@@ -134,7 +134,7 @@ export class UsersController {
     summary: 'Desactivar usuario (equivale a PATCH isActive=false)',
   })
   async remove(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseIdPipe) id: string,
     @CurrentUser() admin: UserEntity,
   ) {
     await this.usersAdminService.update(id, { isActive: false }, admin.id);

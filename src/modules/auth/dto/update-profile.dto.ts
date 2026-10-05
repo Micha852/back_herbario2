@@ -3,12 +3,12 @@ import {
   IsEmail,
   IsOptional,
   IsString,
-  IsUUID,
   Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
 import { NormalizeEmail } from '../../../common/utils/email.util';
+import { IsId } from '../../../common/utils/id.util';
 
 /**
  * Fields a user can change on their own profile.
@@ -39,17 +39,17 @@ export class UpdateProfileDto {
 
   @ApiPropertyOptional({ description: 'Gender ID (UUID)' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   genderId?: string;
 
   @ApiPropertyOptional({ description: 'User type ID (UUID)' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   typeId?: string;
 
   @ApiPropertyOptional({ description: 'Institution ID (UUID)' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   institutionId?: string;
 }
 

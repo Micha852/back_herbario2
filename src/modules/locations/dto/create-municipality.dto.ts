@@ -1,5 +1,6 @@
-import { IsString, IsUUID, IsOptional, IsBoolean, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsId } from '../../../common/utils/id.util';
 
 export class CreateMunicipalityDto {
   @ApiProperty({
@@ -15,7 +16,7 @@ export class CreateMunicipalityDto {
     description: 'Department ID',
     example: '550e8400-e29b-41d4-a716-446655440000',
   })
-  @IsUUID()
+  @IsId()
   departmentId: string;
 
   @ApiPropertyOptional({ default: true })

@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseUUIDPipe,
   Put,
   UseGuards,
 } from '@nestjs/common';
@@ -17,6 +16,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserEntity } from '../users/entities/user.entity';
 import { UserRole } from '../users/enums/user-role.enum';
 import { PermissionsService } from './permissions.service';
+import { ParseIdPipe } from '../../common/utils/id.util';
 
 class SetPermissionsDto {
   @IsArray()
@@ -48,14 +48,14 @@ export class PermissionsController {
   @ApiOperation({
     summary: 'Permisos de un usuario (defaults del rol, ajustes y efectivos)',
   })
-  getUserPermissions(@Param('userId', ParseUUIDPipe) userId: string) {
+  getUserPermissions(@Param('userId', ParseIdPipe) userId: string) {
     return this.permissionsService.getUserPermissions(userId);
   }
 
   @Put('users/:userId')
   @ApiOperation({ summary: 'Define los permisos efectivos de un colaborador' })
   setUserPermissions(
-    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('userId', ParseIdPipe) userId: string,
     @Body() dto: SetPermissionsDto,
     @CurrentUser() admin: UserEntity,
   ) {
@@ -68,7 +68,7 @@ export class PermissionsController {
 
   @Delete('users/:userId')
   @ApiOperation({ summary: 'Vuelve a los permisos por defecto del rol' })
-  resetUserPermissions(@Param('userId', ParseUUIDPipe) userId: string) {
+  resetUserPermissions(@Param('userId', ParseIdPipe) userId: string) {
     return this.permissionsService.resetUserPermissions(userId);
   }
 }

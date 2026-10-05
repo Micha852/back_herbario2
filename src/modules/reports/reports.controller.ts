@@ -2,7 +2,6 @@ import {
   Controller,
   Get,
   Param,
-  ParseUUIDPipe,
   Query,
   Res,
   HttpStatus,
@@ -31,6 +30,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/enums/user-role.enum';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserEntity } from '../users/entities/user.entity';
+import { ParseIdPipe } from '../../common/utils/id.util';
 
 @ApiTags('Reports')
 @Controller('reports')
@@ -113,7 +113,7 @@ export class ReportsController {
   @ApiQuery({ name: 'style', required: false, enum: ['full', 'label'] })
   @ApiProduces('application/pdf')
   async specimenSheet(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseIdPipe) id: string,
     @CurrentUser() user: UserEntity | null,
     @Res() res: Response,
     @Query('style') style?: string,

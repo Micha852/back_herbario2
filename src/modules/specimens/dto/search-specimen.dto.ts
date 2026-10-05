@@ -1,7 +1,6 @@
 import {
   IsOptional,
   IsString,
-  IsUUID,
   IsInt,
   Min,
   Max,
@@ -11,10 +10,12 @@ import {
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsId } from '../../../common/utils/id.util';
 
 export class SearchSpecimenDto {
   @ApiPropertyOptional({
-    description: 'General search: scientific/common name, catalog number, species, genus or family',
+    description:
+      'General search: scientific/common name, catalog number, species, genus or family',
   })
   @IsOptional()
   @IsString()
@@ -37,47 +38,47 @@ export class SearchSpecimenDto {
 
   @ApiPropertyOptional({ description: 'Filter by class ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   classId?: string;
 
   @ApiPropertyOptional({ description: 'Filter by order ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   orderId?: string;
 
   @ApiPropertyOptional({ description: 'Filter by family ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   familyId?: string;
 
   @ApiPropertyOptional({ description: 'Filter by genus ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   genusId?: string;
 
   @ApiPropertyOptional({ description: 'Filter by species ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   speciesId?: string;
 
   @ApiPropertyOptional({ description: 'Filter by division ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   divisionId?: string;
 
   @ApiPropertyOptional({ description: 'Filter by project ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   projectId?: string;
 
   @ApiPropertyOptional({ description: 'Filter by department ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   departmentId?: string;
 
   @ApiPropertyOptional({ description: 'Filter by municipality ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   municipalityId?: string;
 
   @ApiPropertyOptional({ description: 'Collection date from (YYYY-MM-DD)' })
@@ -85,7 +86,9 @@ export class SearchSpecimenDto {
   @IsDateString()
   startDate?: string;
 
-  @ApiPropertyOptional({ description: 'Collection date to, inclusive (YYYY-MM-DD)' })
+  @ApiPropertyOptional({
+    description: 'Collection date to, inclusive (YYYY-MM-DD)',
+  })
   @IsOptional()
   @IsDateString()
   endDate?: string;
@@ -101,26 +104,32 @@ export class SearchSpecimenDto {
 
   @ApiPropertyOptional({ description: 'Filter by location ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   locationId?: string;
 
   @ApiPropertyOptional({ description: 'Filter by collector ID' })
   @IsOptional()
-  @IsUUID()
+  @IsId()
   collectorId?: string;
 
-  @ApiPropertyOptional({ description: 'Con imágenes (true) o sin imágenes (false)' })
+  @ApiPropertyOptional({
+    description: 'Con imágenes (true) o sin imágenes (false)',
+  })
   @IsOptional()
   @IsIn(['true', 'false'])
   hasImages?: 'true' | 'false';
 
-  @ApiPropertyOptional({ description: 'Origen: MANUAL (formulario) o IMPORT (Darwin Core)', enum: ['MANUAL', 'IMPORT'] })
+  @ApiPropertyOptional({
+    description: 'Origen: MANUAL (formulario) o IMPORT (Darwin Core)',
+    enum: ['MANUAL', 'IMPORT'],
+  })
   @IsOptional()
   @IsIn(['MANUAL', 'IMPORT'])
   source?: 'MANUAL' | 'IMPORT';
 
   @ApiPropertyOptional({
-    description: 'Nivel de identificación: species, genus (solo género), family (solo familia) o none',
+    description:
+      'Nivel de identificación: species, genus (solo género), family (solo familia) o none',
     enum: ['species', 'genus', 'family', 'none'],
   })
   @IsOptional()
@@ -129,7 +138,9 @@ export class SearchSpecimenDto {
 
   @ApiPropertyOptional({ description: 'Filter by active status' })
   @IsOptional()
-  @Transform(({ value }) => value === undefined ? undefined : value === 'true')
+  @Transform(({ value }) =>
+    value === undefined ? undefined : value === 'true',
+  )
   @IsBoolean()
   isActive?: boolean;
 

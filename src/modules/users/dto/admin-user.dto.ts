@@ -11,13 +11,13 @@ import {
   IsIn,
   IsOptional,
   IsString,
-  IsUUID,
   Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
 import { UserRole } from '../enums/user-role.enum';
 import { NormalizeEmail } from '../../../common/utils/email.util';
+import { IsId } from '../../../common/utils/id.util';
 
 const ROLES = Object.values(UserRole);
 const trim = ({ value }: { value: unknown }) =>
@@ -61,12 +61,12 @@ export class AdminCreateUserDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUUID()
+  @IsId()
   institutionId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUUID()
+  @IsId()
   genderId?: string;
 }
 

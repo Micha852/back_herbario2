@@ -6,9 +6,9 @@ import {
   IsIn,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
 } from 'class-validator';
+import { IsId } from '../../../common/utils/id.util';
 
 export class DarwinCoreExportQuery {
   @ApiPropertyOptional({ enum: ['xlsx', 'csv'], default: 'xlsx' })
@@ -28,7 +28,7 @@ export class DarwinCoreExportQuery {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUUID('4', { message: 'Proyecto no válido' })
+  @IsId({ message: 'Proyecto no válido' })
   projectId?: string;
 
   @ApiPropertyOptional({
@@ -86,6 +86,6 @@ export class DarwinCoreImportDto {
     description: 'Proyecto al que se asocian todas las muestras',
   })
   @IsOptional()
-  @IsUUID('4', { message: 'Proyecto no válido' })
+  @IsId({ message: 'Proyecto no válido' })
   projectId?: string;
 }

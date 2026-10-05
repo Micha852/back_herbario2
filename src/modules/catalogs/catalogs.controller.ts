@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -28,6 +27,7 @@ import { RequirePermissions } from '../permissions/require-permissions.decorator
 import { PERMISSIONS } from '../permissions/permissions.constants';
 import { hasPermission } from '../permissions/permissions.logic';
 import { CatalogsService } from './catalogs.service';
+import { ParseIdPipe } from '../../common/utils/id.util';
 
 /**
  * Gestión de catálogos desde el panel (taxonomía, morfología, ecología, ubicaciones, proyectos).
@@ -81,7 +81,7 @@ export class CatalogsController {
   @Roles(UserRole.ADMIN, UserRole.COLLABORATOR)
   @Get(':type/:id')
   @ApiOperation({ summary: 'Obtener un elemento' })
-  findOne(@Param('type') type: string, @Param('id', ParseUUIDPipe) id: string) {
+  findOne(@Param('type') type: string, @Param('id', ParseIdPipe) id: string) {
     return this.catalogsService.findOne(type, id);
   }
 
@@ -102,7 +102,7 @@ export class CatalogsController {
   })
   async update(
     @Param('type') type: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseIdPipe) id: string,
     @Body() body: Record<string, unknown>,
     @CurrentUser() user: UserEntity,
   ) {
@@ -127,7 +127,7 @@ export class CatalogsController {
   @ApiOperation({
     summary: 'Eliminar elemento si no está en uso (catalogs.delete)',
   })
-  remove(@Param('type') type: string, @Param('id', ParseUUIDPipe) id: string) {
+  remove(@Param('type') type: string, @Param('id', ParseIdPipe) id: string) {
     return this.catalogsService.remove(type, id);
   }
 }
