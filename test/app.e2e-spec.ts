@@ -519,6 +519,34 @@ const COLLABORATOR = {
     });
   });
 
+  describe('Escríbenos (contacto)', () => {
+    // Máx. 3 mensajes por hora por IP: aquí solo los dos flujos reales
+    it('un visitante sin cuenta escribe y el herbario puede responderle', async () => {
+      await request(http)
+        .post('/api/v1/feedback')
+        .send({
+          comment: 'Quisiera visitar la colección, ¿qué horario tienen?',
+          name: 'Visitante E2E',
+          email: 'Visitante.E2E@Example.com',
+        })
+        .expect(201);
+      expect(sentMail).toHaveBeenLastCalledWith(
+        expect.objectContaining({ replyTo: 'visitante.e2e@example.com' }),
+      );
+    });
+
+    it('con sesión se envía con la cuenta', async () => {
+      await request(http)
+        .post('/api/v1/feedback')
+        .set(auth(visitorToken))
+        .send({ comment: 'Sugerencia: agregar más fotos a las fichas' })
+        .expect(201);
+      expect(sentMail).toHaveBeenLastCalledWith(
+        expect.objectContaining({ replyTo: VISITOR.email }),
+      );
+    });
+  });
+
   describe('imágenes del sitio (CMS)', () => {
     let original: string | null = null;
     const png = () =>

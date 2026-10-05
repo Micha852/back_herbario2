@@ -153,11 +153,19 @@ export class MailService {
   }
 
   /** Destinatario del buzón de sugerencias */
+  /**
+   * Quién recibe los mensajes de Contacto ("Escríbenos"): el correo del panel (Correo →
+   * Mensajes de contacto); si está vacío, la misma cuenta configurada para enviar; si no
+   * hay panel, HERBARIO_EMAIL / MAIL_USER del .env.
+   */
   async feedbackRecipient(): Promise<string> {
     const s = await this.stored();
     return (
       s.feedbackTo ||
+      s.fromEmail ||
+      s.user ||
       this.configService.get<string>('HERBARIO_EMAIL') ||
+      this.configService.get<string>('MAIL_USER') ||
       DEFAULT_FEEDBACK_TO
     );
   }
@@ -263,6 +271,8 @@ export class MailService {
     subject: string;
     html: string;
     from?: string;
+    /** A quién le llega la respuesta (p. ej. el visitante que escribió en Contacto) */
+    replyTo?: string;
   }): Promise<void> {
     const smtp = await this.resolve();
 
@@ -285,7 +295,7 @@ export class MailService {
         .replace(/\n\s*\n+/g, '\n')
         .trim();
       this.logger.log(
-        `\n┌── 📧 Correo (modo desarrollo, no se envió) ──\n│ Para: ${options.to}\n│ Asunto: ${options.subject}\n│\n${text
+        `\n┌── 📧 Correo (modo desarrollo, no se envió) ──\n│ Para: ${options.to}\n${options.replyTo ? `│ Responder a: ${options.replyTo}\n` : ''}│ Asunto: ${options.subject}\n│\n${text
           .split('\n')
           .map((line) => `│ ${line.trim()}`)
           .join('\n')}\n└──────────────────────────────────────────────`,
@@ -297,6 +307,7 @@ export class MailService {
       await this.transporterFor(smtp).sendMail({
         from: options.from || smtp.from,
         to: options.to,
+        ...(options.replyTo && { replyTo: options.replyTo }),
         subject: options.subject,
         html: options.html,
       });

@@ -284,6 +284,10 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
+### 2026-10-05
+- **Contacto unificado en "Escríbenos":** se quitó el botón "Enviar un correo" (un mailto: que no hacía nada sin programa de correo). El buzón ahora acepta visitantes sin cuenta (nombre + correo), llega al correo de Panel → Correo (campo "Mensajes de contacto"; vacío = la cuenta de envío) con Responder a = quien escribió; 3 mensajes/hora por persona y campo trampa para bots. Sesión vencida → 401 (el front renueva). `create-admin` sin el aviso de Node. 76 unitarios, 40 e2e.
+- **Desplegado en producción: https://herbariohuaz.com** (VPS Contabo compartido). Stack Docker en `/var/www/Micha/herbario2` (proyecto `herbario`, puertos 127.0.0.1:3100/4100), repos clonados con deploy keys de solo lectura, secretos generados en el servidor (`.env` / `.env.docker`, 600). nginx `herbariohuaz`: `/api/` → back, `/` → front, www → dominio principal, HTTPS con el certificado existente (respaldo de la config del HDUA junto al archivo). HDUA detenido en PM2 (archivos y MySQL intactos). Base vacía: migraciones aplicadas, falta `create-admin`, configurar Correo e importar datos. Antes: `TRUST_PROXY` (límite de intentos por persona detrás de nginx) y puertos del compose configurables.
+
 ### 2026-10-04
 - **Ejemplos para buscar (como HDUA 1.0, ahora editables):** CMS → Página de inicio tiene una lista de ejemplos por buscador (científico / vulgar, máx. 15, sin repetidos; Enter o pegar varios). En /consultas, al entrar en el buscador vacío aparece un globo "Prueba con:" y elegir un ejemplo busca; sin ejemplos no aparece nada. Subtítulo del editor actualizado. Corregido un error de tipos en Mi perfil (cambio de correo) que habría roto el build del front. Front: 48 tests.
 - **Usuarios, un solo camino por caso:** eliminado `UsersService.update()` (código muerto que cambiaba rol/estado saltándose las reglas del panel) y su `UpdateUserDto`. `create-admin` aplica también la regla del dominio de Chairá.

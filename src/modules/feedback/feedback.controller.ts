@@ -1,5 +1,13 @@
 import { Throttle } from '@nestjs/throttler';
-import { Controller, Post, Body, UseGuards, HttpStatus } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Headers,
+  HttpStatus,
+  Post,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -8,7 +16,7 @@ import {
 } from '@nestjs/swagger';
 import { FeedbackService } from './feedback.service';
 import { CreateFeedbackDto } from './dto/create-feedback.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserEntity } from '../users/entities/user.entity';
 
@@ -17,27 +25,34 @@ import { UserEntity } from '../users/entities/user.entity';
 export class FeedbackController {
   constructor(private readonly feedbackService: FeedbackService) {}
 
-  @UseGuards(JwtAuthGuard)
+  // Con sesión usa la cuenta; sin sesión pide nombre y correo (público: /contacto)
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiBearerAuth()
-  @Throttle({ default: { limit: 5, ttl: 3600000 } }) // evita que se use para llenar el correo del herbario
+  // Por persona (IP real detrás de nginx: TRUST_PROXY); evita llenar el correo del herbario
+  @Throttle({ default: { limit: 3, ttl: 3600000 } })
   @Post()
   @ApiOperation({
-    summary: 'Send feedback or suggestion',
+    summary: 'Escríbenos: pregunta o sugerencia al herbario',
     description:
-      'Sends a suggestion or comment to the herbarium administrators',
+      'Llega por correo al herbario con Responder a = quien escribe. Sin sesión, name y email son obligatorios.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Feedback sent successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'User must be authenticated',
+    description: 'Mensaje enviado',
   })
   async sendFeedback(
     @Body() dto: CreateFeedbackDto,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: UserEntity | null,
+    @Headers('authorization') authorization?: string,
   ): Promise<{ message: string }> {
-    return this.feedbackService.sendFeedback(dto, user.name, user.email);
+    // Llegó un token pero ya no sirve (sesión vencida): 401 para que el front renueve la
+    // sesión y reintente, en vez de tratar a la persona como visitante sin cuenta
+    if (!user && authorization) {
+      throw new UnauthorizedException('Tu sesión venció');
+    }
+    return this.feedbackService.sendFeedback(
+      dto,
+      user ? { name: user.name, email: user.email } : undefined,
+    );
   }
 }
