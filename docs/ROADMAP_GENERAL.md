@@ -243,6 +243,15 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 
 ---
 
+### Fase F - Plataforma multitenant (SaaS) ⏳ — rama `saas`
+
+Modelo (como Contagracia): **una base de datos por herbario** + base master; subdominio por herbario; taxonomía y cuentas propias de cada herbario. `main` sigue siendo HUAZ (un solo herbario).
+
+- [x] **F1 Núcleo:** master (`prisma/master`: herbarios + admins de plataforma), resolución por subdominio / `X-Herbario` / `DEFAULT_HERBARIUM`, `PrismaService` como proxy a la base del herbario (pool LRU), JWT atado al herbario (`hb`, también en refresh), health sobre la master, transportes SMTP por configuración, scripts `herbarium:create` (crear/adoptar, con rollback) y `tenants:migrate` (migrate deploy en cada base), e2e con dos herbarios + pruebas de aislamiento, CI y Docker actualizados.
+- [ ] **F2 Panel de plataforma:** login de admin de plataforma, crear/suspender herbarios desde la web; el front deriva el API de su propio dominio (sin URL fija) y manda el herbario.
+- [ ] **F3 Infraestructura:** dominio de la plataforma, DNS comodín y certificados, imágenes por herbario (`uploads/<slug>`), respaldos por herbario.
+- [ ] **F4 Comercial:** landing de la plataforma, planes y límites, registro con periodo de prueba.
+
 ## 6. Fuera de alcance (ideas futuras)
 
 - **Login con Chairá identificando a la persona (OAuth2 completo)** — hoy funciona al estilo HDUA (ver Fase E). Para que una persona = una cuenta en cualquier navegador hace falta que TI entregue lo de "Bloqueante". HDUA tenía `LoginController.LoginChaira` → `https://chaira.uniamazonia.edu.co/ChairaApi/oauth2/auth?response_type=code&client_id=…&redirect_uri=…&state=ok` y `ChairaCallback`. **No copiarlo tal cual**, tenía dos fallas graves:
@@ -283,6 +292,9 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 ## 8. Bitácora
 
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
+
+### 2026-10-17
+- **Multitenant F1 (rama `saas`):** núcleo completo — cada herbario con su base, master con la lista de herbarios, subdominio/cabecera/por defecto, PrismaService proxy (los 17 módulos sin cambios), JWT atado al herbario, scripts de alta y migración de todas las bases. Local: master `herbario_master`, `huaz` adopta `hdua_db`, `coah` de prueba. Prueba de aislamiento 18/18 contra el API real; 92 unitarios (12 nuevos), 43 e2e (3 de aislamiento entre "e2e" y "e2e-b").
 
 ### 2026-10-05
 - **Limpieza de la taxonomía en producción** (con respaldo previo en el servidor: `backups/herbario-antes-limpieza-*.sql.gz`): Anacardium pasó de Fabaceae (error de la migración inicial) a Anacardiaceae; Magnoliopsida y Liliopsida bajo Tracheophyta (como el Excel y GBIF); borradas las especies de ejemplo sin uso (Ficus elastica, Cecropia peltata) y las divisiones vacías Magnoliophyta y Pteridophyta. Sin duplicados. Los catálogos de apoyo de la migración (condiciones, tipos de hoja, hábitats, municipios…) se conservan: son valores reales y varios ya los usan las muestras.

@@ -4,7 +4,14 @@
  * Referencia de todas las variables: .env.example
  */
 
-const REQUIRED = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'] as const;
+// DATABASE_URL: servidor/usuario de las bases de los herbarios (el nombre de la base lo pone
+// cada herbario). MASTER_DATABASE_URL: base de la plataforma (lista de herbarios).
+const REQUIRED = [
+  'DATABASE_URL',
+  'MASTER_DATABASE_URL',
+  'JWT_SECRET',
+  'JWT_REFRESH_SECRET',
+] as const;
 
 /** Valores que delatan un secreto de ejemplo */
 const PLACEHOLDER = /change|your|example|secret-key|refresh-secret/i;

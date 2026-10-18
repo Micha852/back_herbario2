@@ -40,7 +40,10 @@ services:
     restart: unless-stopped
     env_file: .env.docker
     environment:
+      # Servidor/usuario de las bases de los herbarios (cada herbario tiene su base: herbario_<slug>)
       DATABASE_URL: postgresql://herbario:${POSTGRES_PASSWORD:-herbario}@db:5432/herbario?schema=public
+      # Base de la plataforma: lista de herbarios (se crea sola al arrancar)
+      MASTER_DATABASE_URL: postgresql://herbario:${POSTGRES_PASSWORD:-herbario}@db:5432/herbario_master?schema=public
       PORT: 4000
     ports:
       # Dónde se publica (en un servidor con nginx delante: BACK_PUBLISH=127.0.0.1:4100)

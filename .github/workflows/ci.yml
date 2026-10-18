@@ -20,6 +20,8 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgresql://herbario:herbario@localhost:5432/herbario_ci?schema=public
+      # Multitenant: master de pruebas (lista de herbarios); los herbarios e2e usan DATABASE_URL
+      MASTER_DATABASE_URL: postgresql://herbario:herbario@localhost:5432/herbario_master_ci?schema=public
       JWT_SECRET: ci-only-secret-not-for-production-0123456789
       JWT_REFRESH_SECRET: ci-only-refresh-secret-not-for-production-0123
     steps:
@@ -29,16 +31,16 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx prisma generate
-      - name: Migraciones aplican sobre una base vacía
-        run: npx prisma migrate deploy
+      - name: Clientes de Prisma (herbario + master)
+        run: npm run prisma:generate
       - name: Tipos
         run: npx tsc --noEmit -p tsconfig.json
       - name: Tests unitarios
         run: npx jest --ci
       - name: Build
         run: npm run build
-      - name: Datos iniciales (base de CI)
-        run: npx ts-node prisma/seed.ts --reset
+      # Migraciones sobre bases vacías (master y dos herbarios) + datos de prueba en cada herbario
+      - name: Plataforma de prueba (master + herbarios e2e y e2e-b)
+        run: npm run tenants:setup-test
       - name: Tests e2e
         run: npm run test:e2e -- --forceExit

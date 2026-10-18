@@ -1,10 +1,12 @@
 /**
  * E2E de los flujos principales contra una base real (con migraciones y el seed aplicados).
  *
- * Local:
- *   DATABASE_URL=".../herbario_e2e?schema=public" npx prisma migrate deploy
- *   DATABASE_URL=".../herbario_e2e?schema=public" npm run prisma:seed
- *   DATABASE_URL=".../herbario_e2e?schema=public" npm run test:e2e
+ * Multitenant: corre contra el herbario "e2e" (por defecto) y comprueba el aislamiento con
+ * "e2e-b". Local (master de pruebas: herbario_master_e2e, ver test/setup-env.ts):
+ *   export DATABASE_URL=".../herbario_e2e?schema=public"
+ *   export MASTER_DATABASE_URL=".../herbario_master_e2e?schema=public"
+ *   npm run tenants:setup-test      # master + herbarios e2e y e2e-b con datos de prueba
+ *   npm run test:e2e
  *
  * Seguro: solo corre si el nombre de la base contiene "test", "e2e" o "ci"
  * (crea y borra muestras: nunca debe apuntar a la base de desarrollo).
@@ -544,6 +546,58 @@ const COLLABORATOR = {
       expect(sentMail).toHaveBeenLastCalledWith(
         expect.objectContaining({ replyTo: VISITOR.email }),
       );
+    });
+  });
+
+  describe('multitenant: un herbario no ve nada de otro', () => {
+    const OTHER = 'e2e-b';
+    const other = (r: request.Test) => r.set('X-Herbario', OTHER);
+
+    it('la muestra de "e2e" no existe en "e2e-b"', async () => {
+      const list = await other(
+        request(http).get(`/api/v1/specimens?search=${catalogNumber}`),
+      ).expect(200);
+      expect(list.body.data).toHaveLength(0);
+      await other(request(http).get(`/api/v1/specimens/${specimenId}`)).expect(
+        404,
+      );
+    });
+
+    it('la sesión de un herbario no sirve en otro (en ningún sentido)', async () => {
+      await other(
+        request(http).get('/api/v1/auth/profile').set(auth(adminToken)),
+      ).expect(401);
+
+      // El seed crea el mismo correo en los dos: son cuentas distintas
+      const res = await other(
+        request(http).post('/api/v1/auth/login').send(ADMIN),
+      ).expect(201);
+      const otherProfile = await other(
+        request(http)
+          .get('/api/v1/auth/profile')
+          .set(auth(res.body.accessToken)),
+      ).expect(200);
+      const ownProfile = await request(http)
+        .get('/api/v1/auth/profile')
+        .set(auth(adminToken))
+        .expect(200);
+      expect(otherProfile.body.id).not.toBe(ownProfile.body.id);
+
+      await request(http)
+        .get('/api/v1/auth/profile')
+        .set(auth(res.body.accessToken))
+        .expect(401);
+    });
+
+    it('herbario inexistente → 404; health no necesita herbario', async () => {
+      await request(http)
+        .get('/api/v1/specimens')
+        .set('X-Herbario', 'no-existe')
+        .expect(404);
+      await request(http)
+        .get('/api/v1/health')
+        .set('X-Herbario', 'no-existe')
+        .expect(200);
     });
   });
 

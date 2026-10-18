@@ -68,13 +68,14 @@ interface ResolvedSmtp {
   from: string;
 }
 
+/** Tope de transportes en memoria (uno por cuenta SMTP distinta) */
+const MAX_TRANSPORTERS = 50;
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private transporter: {
-    fingerprint: string;
-    instance: nodemailer.Transporter;
-  } | null = null;
+  /** Transportes SMTP por configuración (ver transporterFor) */
+  private readonly transporters = new Map<string, nodemailer.Transporter>();
 
   constructor(
     private configService: ConfigService,
@@ -136,20 +137,29 @@ export class MailService {
     return null;
   }
 
+  /**
+   * Un transporte por configuración SMTP (multitenant: cada herbario puede tener su cuenta).
+   * Con uno solo compartido, dos herbarios enviando a la vez se lo reemplazaban mutuamente.
+   */
   private transporterFor(smtp: ResolvedSmtp): nodemailer.Transporter {
     const fingerprint = [smtp.host, smtp.port, smtp.user, smtp.pass].join('|');
-    if (this.transporter?.fingerprint !== fingerprint) {
-      this.transporter = {
-        fingerprint,
-        instance: nodemailer.createTransport({
-          host: smtp.host,
-          port: smtp.port,
-          secure: smtp.port === 465,
-          auth: { user: smtp.user, pass: smtp.pass },
-        }),
-      };
+    let instance = this.transporters.get(fingerprint);
+    if (!instance) {
+      if (this.transporters.size >= MAX_TRANSPORTERS) this.resetTransporters();
+      instance = nodemailer.createTransport({
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.port === 465,
+        auth: { user: smtp.user, pass: smtp.pass },
+      });
+      this.transporters.set(fingerprint, instance);
     }
-    return this.transporter.instance;
+    return instance;
+  }
+
+  private resetTransporters() {
+    for (const transporter of this.transporters.values()) transporter.close();
+    this.transporters.clear();
   }
 
   /** Destinatario del buzón de sugerencias */
@@ -224,7 +234,6 @@ export class MailService {
         isActive: false,
       },
     });
-    this.transporter = null;
     return this.getSettings();
   }
 
@@ -233,7 +242,6 @@ export class MailService {
     await this.prisma.systemInfo.deleteMany({
       where: { key: MAIL_SETTINGS_KEY },
     });
-    this.transporter = null;
     return this.getSettings();
   }
 

@@ -3,14 +3,14 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AppService } from './app.service';
-import { PrismaService } from './database/prisma.service';
+import { MasterPrismaService } from './tenancy/master-prisma.service';
 
 @ApiTags('Health')
 @Controller()
 export class AppController {
   constructor(
     private readonly appService: AppService,
-    private readonly prisma: PrismaService,
+    private readonly master: MasterPrismaService,
   ) {}
 
   @Get()
@@ -34,9 +34,10 @@ export class AppController {
     description: 'La base de datos no responde',
   })
   async health(@Res({ passthrough: true }) res: Response) {
+    // Ruta de la plataforma (sin herbario): revisa la base master
     let database: 'up' | 'down' = 'up';
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      await this.master.$queryRaw`SELECT 1`;
     } catch {
       database = 'down';
       res.status(HttpStatus.SERVICE_UNAVAILABLE);

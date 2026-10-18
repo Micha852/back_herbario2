@@ -93,6 +93,30 @@ NODE_ENV=production node dist/main
 
 En producción la app **no arranca** si los secretos JWT son cortos (menos de 32 caracteres), iguales entre sí o los valores de ejemplo.
 
+## Multitenant (rama `saas`)
+
+Una sola instalación atiende a **varios herbarios**, cada uno con **su propia base de datos**: el mismo esquema de siempre, así que sus muestras, usuarios, catálogos, CMS y correo quedan aislados sin cambiar los módulos.
+
+- **Base master** (`MASTER_DATABASE_URL`, esquema en `prisma/master/`): qué herbarios existen (`slug`, `dbName`, estado) y los administradores de la plataforma.
+- **Cada petición** se asocia a un herbario en `src/tenancy/tenant.middleware.ts`. Se busca en este orden:
+  1. el subdominio `<slug>.PLATFORM_DOMAIN`;
+  2. la cabecera `X-Herbario` (desarrollo);
+  3. `DEFAULT_HERBARIUM`.
+
+  Un herbario inexistente responde 404, uno suspendido 403 y uno que se está creando 503.
+- **`PrismaService` es un proxy**: cada `this.prisma…` va a la base del herbario de la petición, mediante un pool LRU de clientes en `tenant-clients.service.ts`. Fuera de una petición de herbario lanza un error, en vez de ir a un herbario cualquiera.
+- **El JWT lleva el herbario (`hb`)**: una sesión de un herbario no sirve en otro.
+
+```bash
+npm run master:migrate                                    # migraciones de la master
+npm run herbarium:create -- --slug coah --name "Herbario COAH" \
+  --admin-email admin@coah.co --admin-name "Admin COAH"   # base nueva + migraciones + admin
+npm run herbarium:create -- --slug huaz --name "HUAZ" --db hdua_db --existing   # adoptar una base existente
+npm run tenants:migrate                                   # migraciones en la base de CADA herbario
+```
+
+En Docker, el contenedor ejecuta `master:migrate` y `tenants:migrate` al arrancar. Cada herbario tiene su base `herbario_<slug>` en el mismo servidor de `DATABASE_URL`.
+
 ## Variables de entorno
 
 Están todas en [`.env.example`](.env.example), con su explicación. Las principales:

@@ -8,7 +8,8 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma
 RUN npm ci
 COPY . .
-RUN npx prisma generate && npm run build
+# Dos clientes: el de los herbarios y el de la master (lista de herbarios)
+RUN npm run prisma:generate && npm run build
 
 FROM node:22-bookworm-slim
 WORKDIR /app
@@ -27,4 +28,5 @@ USER node
 EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD node -e "fetch('http://localhost:'+(process.env.PORT||4000)+'/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/main"]
+# Al arrancar: migraciones de la master y de la base de CADA herbario, luego la API
+CMD ["sh", "-c", "npm run master:migrate && npm run tenants:migrate && exec node dist/main"]

@@ -21,7 +21,7 @@ import { normalizeEmail } from '../../common/utils/email.util';
 const REGISTER_PURPOSE = 'register';
 const CHANGE_EMAIL_PURPOSE = 'change-email';
 import { LoginResponseDto } from './dto/login.dto';
-import { JwtPayload } from './strategies/jwt.strategy';
+import { currentHerbariumSlug, JwtPayload } from './strategies/jwt.strategy';
 import { MailService } from '../mail/mail.service';
 
 @Injectable()
@@ -53,6 +53,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role?.name || 'VISITANTE',
+      hb: currentHerbariumSlug(),
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -215,6 +216,10 @@ export class AuthService {
         secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
 
+      // La sesión es del herbario donde se inició: no se renueva en otro
+      const herbarium = currentHerbariumSlug();
+      if (payload.hb !== herbarium) throw new Error('otro herbario');
+
       const user = await this.usersService.findOne(payload.sub);
       // Un usuario desactivado no puede renovar su sesión
       if (!user.isActive) throw new Error('inactive');
@@ -223,6 +228,7 @@ export class AuthService {
         sub: user.id,
         email: user.email,
         role: user.role?.name || 'VISITANTE',
+        hb: herbarium,
       };
 
       return {

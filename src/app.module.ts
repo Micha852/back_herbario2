@@ -10,6 +10,7 @@ import { AppService } from './app.service';
 
 // Core modules
 import { DatabaseModule } from './database/database.module';
+import { TenancyModule } from './tenancy/tenancy.module';
 
 // Feature modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -53,6 +54,8 @@ import { InstitutionsModule } from './modules/institutions/institutions.module';
     }),
 
     // Core modules
+    // Multitenant: cada petición va a la base de su herbario (ver src/tenancy)
+    TenancyModule,
     DatabaseModule,
     MailModule,
 
