@@ -1,4 +1,5 @@
 import { Global, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { HerbariumController } from './herbarium.controller';
 import { MasterPrismaService } from './master-prisma.service';
 import { TenantClientsService } from './tenant-clients.service';
 import { TenantMiddleware } from './tenant.middleware';
@@ -7,6 +8,7 @@ import { TenantsService } from './tenants.service';
 /** Multitenant: base master, pool de bases por herbario y resolución del herbario */
 @Global()
 @Module({
+  controllers: [HerbariumController],
   providers: [MasterPrismaService, TenantClientsService, TenantsService],
   exports: [MasterPrismaService, TenantClientsService, TenantsService],
 })

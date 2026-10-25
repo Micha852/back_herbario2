@@ -117,6 +117,22 @@ npm run tenants:migrate                                   # migraciones en la ba
 
 En Docker, el contenedor ejecuta `master:migrate` y `tenants:migrate` al arrancar. Cada herbario tiene su base `herbario_<slug>` en el mismo servidor de `DATABASE_URL`.
 
+### Panel de la plataforma
+
+El panel está en `/plataforma` del front (en el dominio raíz) y su API en `/api/v1/platform`. Desde ahí se crean herbarios: su base, sus migraciones y su primer administrador, en segundo plano. También se pueden editar, suspender, reactivar y reintentar.
+
+- Los administradores de la plataforma viven en la master y tienen otro tipo de token. Un token de plataforma no sirve en un herbario, ni al revés.
+- El primero se crea por consola: `npm run platform:create-admin -- --email yo@correo.co --name "Nombre"`.
+- Al crear un herbario, la contraseña temporal de su administrador se muestra una sola vez.
+- El límite de intentos cuenta por IP **y por herbario**: los visitantes de un herbario no gastan el cupo de otro.
+
+**Front:** llama a `/api` en su mismo dominio. En producción nginx lleva `/api` al back; en desarrollo lo reenvía Next (`next.config.ts`, `BACKEND_URL`). En los dos casos el back recibe el subdominio y sabe de qué herbario es.
+
+En desarrollo:
+- `localhost:3000` → herbario por defecto (`DEFAULT_HERBARIUM`)
+- `coah.localhost:3000` → herbario `coah`
+- `localhost:3000/plataforma` → el panel
+
 ## Variables de entorno
 
 Están todas en [`.env.example`](.env.example), con su explicación. Las principales:

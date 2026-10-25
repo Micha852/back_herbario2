@@ -1,8 +1,9 @@
 /**
  * Resuelve el herbario de cada petición y ejecuta el resto dentro de su contexto.
  *
- * Orden: 1) subdominio (<slug>.<PLATFORM_DOMAIN>, lo normal en producción detrás de nginx);
- *        2) cabecera X-Herbario (desarrollo: el front en :3000 llama al API en :4000);
+ * Orden: 1) subdominio (<slug>.<PLATFORM_DOMAIN>): de X-Forwarded-Host (el front de Next
+ *           reenvía /api al back) o del Host (nginx manda /api directo al back);
+ *        2) cabecera X-Herbario (scripts, pruebas, otros clientes);
  *        3) DEFAULT_HERBARIUM (desarrollo y pruebas con un solo herbario).
  * Elegir el herbario por cabecera equivale a visitar su subdominio: no da acceso a nada más.
  * Lo que protege los datos es que cada herbario tiene su base y que el JWT queda atado al
@@ -41,7 +42,15 @@ export class TenantMiddleware implements NestMiddleware {
     }
 
     const header = req.headers[TENANT_HEADER];
+    // El front (Next) reenvía /api al back y manda el dominio original en X-Forwarded-Host
+    const forwardedHost = req.headers['x-forwarded-host'];
     const slug = (
+      slugFromHost(
+        typeof forwardedHost === 'string'
+          ? forwardedHost.split(',')[0]
+          : undefined,
+        this.platformDomain,
+      ) ??
       slugFromHost(req.headers.host, this.platformDomain) ??
       (typeof header === 'string' ? header : undefined) ??
       this.defaultSlug

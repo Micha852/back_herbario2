@@ -19,6 +19,9 @@ import * as sharp from 'sharp';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import { MailService } from '../src/modules/mail/mail.service';
+import * as bcrypt from 'bcrypt';
+import { MasterPrismaService } from '../src/tenancy/master-prisma.service';
+import { TenantClientsService } from '../src/tenancy/tenant-clients.service';
 
 const dbName =
   (process.env.DATABASE_URL ?? '').split('/').pop()?.split('?')[0] ?? '';
@@ -598,6 +601,119 @@ const COLLABORATOR = {
         .get('/api/v1/health')
         .set('X-Herbario', 'no-existe')
         .expect(200);
+    });
+  });
+
+  describe('plataforma: crear y administrar herbarios', () => {
+    const PLATFORM_ADMIN = {
+      email: `plataforma.${Date.now()}@e2e.test`,
+      password: 'PlataformaE2E2026',
+    };
+    const slug = `e2e-p${Date.now().toString(36)}`;
+    let master: MasterPrismaService;
+    let platformToken: string;
+    let herbariumId: string;
+    let dbName: string;
+
+    beforeAll(async () => {
+      master = app.get(MasterPrismaService);
+      await master.platformAdmin.create({
+        data: {
+          email: PLATFORM_ADMIN.email,
+          name: 'Plataforma E2E',
+          password: await bcrypt.hash(PLATFORM_ADMIN.password, 10),
+        },
+      });
+    });
+
+    afterAll(async () => {
+      await master.platformAdmin.deleteMany({
+        where: { email: PLATFORM_ADMIN.email },
+      });
+      if (!herbariumId) return;
+      await app.get(TenantClientsService).release(dbName);
+      await master.herbarium.delete({ where: { id: herbariumId } });
+      // Solo bases de prueba (el nombre viene del slug e2e-p…)
+      if (/^herbario_e2e_p[a-z0-9]+$/.test(dbName)) {
+        await master.$executeRawUnsafe(
+          `DROP DATABASE IF EXISTS "${dbName}" WITH (FORCE)`,
+        );
+      }
+    });
+
+    it('login de plataforma; su token no sirve en un herbario y viceversa', async () => {
+      const res = await request(http)
+        .post('/api/v1/platform/auth/login')
+        .send(PLATFORM_ADMIN)
+        .expect(200);
+      platformToken = res.body.accessToken;
+      await request(http)
+        .get('/api/v1/auth/profile')
+        .set(auth(platformToken))
+        .expect(401);
+      await request(http)
+        .get('/api/v1/platform/herbaria')
+        .set(auth(adminToken))
+        .expect(401);
+    });
+
+    it('crea un herbario de verdad (base + migraciones + admin) y queda ACTIVE', async () => {
+      const res = await request(http)
+        .post('/api/v1/platform/herbaria')
+        .set(auth(platformToken))
+        .send({
+          slug,
+          name: 'Herbario creado en el e2e',
+          adminEmail: 'admin@e2e-p.test',
+          adminName: 'Admin E2E P',
+        })
+        .expect(202);
+      herbariumId = res.body.herbarium.id;
+      dbName = res.body.herbarium.dbName;
+      const password = res.body.admin.temporaryPassword;
+
+      let status = 'PROVISIONING';
+      for (let i = 0; i < 60 && status === 'PROVISIONING'; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        const h = await request(http)
+          .get(`/api/v1/platform/herbaria/${herbariumId}`)
+          .set(auth(platformToken));
+        status = h.body.status;
+      }
+      expect(status).toBe('ACTIVE');
+
+      const login = await request(http)
+        .post('/api/v1/auth/login')
+        .set('X-Herbario', slug)
+        .send({ email: 'admin@e2e-p.test', password })
+        .expect(201);
+      // Nace vacío: no ve nada del herbario "e2e"
+      const list = await request(http)
+        .get('/api/v1/specimens')
+        .set('X-Herbario', slug)
+        .set(auth(login.body.accessToken))
+        .expect(200);
+      expect(list.body.meta.total).toBe(0);
+    }, 90_000);
+
+    it('suspender (403 al instante) y reactivar', async () => {
+      await request(http)
+        .post(`/api/v1/platform/herbaria/${herbariumId}/suspend`)
+        .set(auth(platformToken))
+        .expect(200);
+      await request(http)
+        .get('/api/v1/herbario')
+        .set('X-Herbario', slug)
+        .expect(403);
+      await request(http)
+        .post(`/api/v1/platform/herbaria/${herbariumId}/activate`)
+        .set(auth(platformToken))
+        .expect(200);
+      const res = await request(http)
+        .get('/api/v1/herbario')
+        .set('X-Herbario', slug)
+        .expect(200);
+      expect(res.body.slug).toBe(slug);
     });
   });
 

@@ -248,7 +248,7 @@ Muestras registradas antes de que existiera `createdBy` solo las edita quien ten
 Modelo (como Contagracia): **una base de datos por herbario** + base master; subdominio por herbario; taxonomía y cuentas propias de cada herbario. `main` sigue siendo HUAZ (un solo herbario).
 
 - [x] **F1 Núcleo:** master (`prisma/master`: herbarios + admins de plataforma), resolución por subdominio / `X-Herbario` / `DEFAULT_HERBARIUM`, `PrismaService` como proxy a la base del herbario (pool LRU), JWT atado al herbario (`hb`, también en refresh), health sobre la master, transportes SMTP por configuración, scripts `herbarium:create` (crear/adoptar, con rollback) y `tenants:migrate` (migrate deploy en cada base), e2e con dos herbarios + pruebas de aislamiento, CI y Docker actualizados.
-- [ ] **F2 Panel de plataforma:** login de admin de plataforma, crear/suspender herbarios desde la web; el front deriva el API de su propio dominio (sin URL fija) y manda el herbario.
+- [x] **F2 Panel de plataforma:** `/plataforma` (login propio, crear herbario con base+migraciones+admin en segundo plano y contraseña temporal mostrada una vez, editar, suspender/reactivar al instante, reintentar los fallidos); API `/api/v1/platform` con token de plataforma separado; `platform:create-admin`; front con `/api` relativo + rewrites de Next (el back lee X-Forwarded-Host), `GET /api/v1/herbario` y pantallas de herbario inexistente/suspendido/preparándose; límite de intentos por IP y por herbario.
 - [ ] **F3 Infraestructura:** dominio de la plataforma, DNS comodín y certificados, imágenes por herbario (`uploads/<slug>`), respaldos por herbario.
 - [ ] **F4 Comercial:** landing de la plataforma, planes y límites, registro con periodo de prueba.
 
@@ -292,6 +292,9 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 ## 8. Bitácora
 
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
+
+### 2026-10-22
+- **Multitenant F2 (rama `saas`):** panel de la plataforma y front multi-herbario. Crear un herbario completo tarda ~3 s (base, 15 migraciones, catálogos, admin). Probado de punta a punta: API de plataforma 25/25 (tokens que no se cruzan, crear hasta ACTIVE, suspender/reactivar, validaciones) y a través de Next: huaz/coah/inexistente por subdominio, imágenes por herbario. Corregido: el límite de intentos se contaba por IP sumando todos los herbarios (un campus detrás de una IP gastaba el cupo de login de todos). 92 unitarios, 46 e2e (crear herbario real incluido), front 57.
 
 ### 2026-10-17
 - **Multitenant F1 (rama `saas`):** núcleo completo — cada herbario con su base, master con la lista de herbarios, subdominio/cabecera/por defecto, PrismaService proxy (los 17 módulos sin cambios), JWT atado al herbario, scripts de alta y migración de todas las bases. Local: master `herbario_master`, `huaz` adopta `hdua_db`, `coah` de prueba. Prueba de aislamiento 18/18 contra el API real; 92 unitarios (12 nuevos), 43 e2e (3 de aislamiento entre "e2e" y "e2e-b").

@@ -16,17 +16,19 @@ datasource db {
 
 /// Un herbario de la plataforma (tenant). Se entra por <slug>.<PLATFORM_DOMAIN>.
 model Herbarium {
-  id           String          @id @default(uuid())
+  id                String          @id @default(uuid())
   /// Subdominio: minúsculas, números y guiones (huaz, coah, jardin-botanico)
-  slug         String          @unique @db.VarChar(40)
-  name         String          @db.VarChar(150)
+  slug              String          @unique @db.VarChar(40)
+  name              String          @db.VarChar(150)
   /// Base de datos del herbario (mismo servidor que DATABASE_URL)
-  dbName       String          @unique @db.VarChar(63)
-  status       HerbariumStatus @default(PROVISIONING)
-  contactEmail String?         @db.VarChar(100)
-  suspendedAt  DateTime?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  dbName            String          @unique @db.VarChar(63)
+  status            HerbariumStatus @default(PROVISIONING)
+  contactEmail      String?         @db.VarChar(100)
+  suspendedAt       DateTime?
+  /// Si la creación falló (status FAILED): qué pasó, para reintentar
+  provisioningError String?         @db.Text
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   @@map("herbaria")
 }

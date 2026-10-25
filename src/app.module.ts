@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { validateEnv } from './config/env.validation';
 import { ServeStaticModule } from '@nestjs/serve-static';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { join } from 'path';
 import { AppController } from './app.controller';
@@ -11,6 +11,8 @@ import { AppService } from './app.service';
 // Core modules
 import { DatabaseModule } from './database/database.module';
 import { TenancyModule } from './tenancy/tenancy.module';
+import { TenantThrottlerGuard } from './tenancy/tenant-throttler.guard';
+import { PlatformModule } from './platform/platform.module';
 
 // Feature modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -57,6 +59,8 @@ import { InstitutionsModule } from './modules/institutions/institutions.module';
     // Multitenant: cada petición va a la base de su herbario (ver src/tenancy)
     TenancyModule,
     DatabaseModule,
+    // Panel de la plataforma (herbarios, admins de plataforma): /api/v1/platform
+    PlatformModule,
     MailModule,
 
     // Feature modules
@@ -78,6 +82,6 @@ import { InstitutionsModule } from './modules/institutions/institutions.module';
     InstitutionsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [AppService, { provide: APP_GUARD, useClass: TenantThrottlerGuard }],
 })
 export class AppModule { }
