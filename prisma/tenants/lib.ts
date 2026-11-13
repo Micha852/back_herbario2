@@ -84,3 +84,64 @@ export function run(main: () => Promise<void>) {
     process.exitCode = 1;
   });
 }
+
+/**
+ * Plantilla neutra de un herbario NUEVO (CMS con su nombre, sin el contador "HUAZ" de la
+ * migración). Misma lógica que src/tenancy/default-content.ts; misma plantilla
+ * (prisma/templates/herbarium-content.json).
+ */
+export async function applyDefaultContent(
+  databaseUrl: string,
+  name: string,
+  contactEmail?: string | null,
+) {
+  const { readFileSync } = await import('fs');
+  const { join } = await import('path');
+  const { PrismaClient } = await import('@prisma/client');
+  const month = new Date().toLocaleDateString('es-CO', {
+    month: 'long',
+    year: 'numeric',
+  });
+  const vars: Record<string, string> = {
+    nombre: name,
+    correo: contactEmail ?? '',
+    fecha: month.charAt(0).toUpperCase() + month.slice(1),
+  };
+  const fill = (value: unknown): unknown =>
+    typeof value === 'string'
+      ? value.replace(/\{\{(\w+)\}\}/g, (m, k: string) => vars[k] ?? m)
+      : Array.isArray(value)
+        ? value.map(fill)
+        : value && typeof value === 'object'
+          ? Object.fromEntries(
+              Object.entries(value).map(([k, v]) => [k, fill(v)]),
+            )
+          : value;
+  const template = JSON.parse(
+    readFileSync(
+      join(__dirname, '..', 'templates', 'herbarium-content.json'),
+      'utf8',
+    ),
+  ) as Record<string, { title: string; content: unknown }>;
+
+  const db = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
+  try {
+    for (const [key, page] of Object.entries(template)) {
+      const data = {
+        title: page.title,
+        content: JSON.stringify(fill(page.content), null, 2),
+        isActive: true,
+      };
+      await db.systemInfo.upsert({
+        where: { key },
+        create: { key, ...data },
+        update: data,
+      });
+    }
+    await db.catalogCounter.deleteMany({
+      where: { prefix: 'HUAZ', lastNumber: 0 },
+    });
+  } finally {
+    await db.$disconnect();
+  }
+}

@@ -97,6 +97,7 @@ export class TenantMiddleware implements NestMiddleware {
         slug: herbarium.slug,
         name: herbarium.name,
         dbName: herbarium.dbName,
+        contactEmail: herbarium.contactEmail,
       },
       () => next(),
     );

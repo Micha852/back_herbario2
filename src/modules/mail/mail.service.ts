@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { PrismaService } from '../../database/prisma.service';
 import { decryptSecret, encryptSecret } from '../../common/utils/secret-box';
+import { herbariumName, TenantContext } from '../../tenancy/tenant-context';
 
 /**
  * Envío de correos por SMTP. La configuración sale, en este orden, de:
@@ -20,8 +21,8 @@ import { decryptSecret, encryptSecret } from '../../common/utils/secret-box';
  */
 
 export const MAIL_SETTINGS_KEY = 'correo';
-const DEFAULT_FROM = 'Herbario HUAZ <noreply@uniamazonia.edu.co>';
-const DEFAULT_FEEDBACK_TO = 'herbario@uniamazonia.edu.co';
+/** Correo dentro de un encabezado From ("Nombre <correo@x.co>" → "correo@x.co") */
+const emailOf = (from?: string) => from?.match(/<([^>]+)>/)?.[1] ?? from;
 
 /** Lo que se guarda en system_info (la contraseña va cifrada) */
 interface StoredMailSettings {
@@ -118,8 +119,11 @@ export class MailService {
         port: s.port ?? 587,
         user: s.user,
         pass,
-        from:
-          this.fromHeader(s.fromName, s.fromEmail || s.user) ?? DEFAULT_FROM,
+        // Sin nombre de remitente configurado: el nombre del herbario
+        from: this.fromHeader(
+          s.fromName || herbariumName(),
+          s.fromEmail || s.user,
+        )!,
       };
     }
 
@@ -131,7 +135,11 @@ export class MailService {
         port: parseInt(env('MAIL_PORT') || '587', 10),
         user: env('MAIL_USER')!,
         pass: env('MAIL_PASSWORD')!,
-        from: env('MAIL_FROM') || DEFAULT_FROM,
+        // SMTP de la plataforma (.env): el remitente lleva el nombre del herbario que envía
+        from: this.fromHeader(
+          herbariumName(),
+          emailOf(env('MAIL_FROM')) || env('MAIL_USER'),
+        )!,
       };
     }
     return null;
@@ -164,20 +172,26 @@ export class MailService {
 
   /** Destinatario del buzón de sugerencias */
   /**
-   * Quién recibe los mensajes de Contacto ("Escríbenos"): el correo del panel (Correo →
-   * Mensajes de contacto); si está vacío, la misma cuenta configurada para enviar; si no
-   * hay panel, HERBARIO_EMAIL / MAIL_USER del .env.
+   * Quién recibe los mensajes de Contacto ("Escríbenos") del herbario en curso: el correo del
+   * panel (Correo → Mensajes de contacto); si está vacío, la cuenta configurada para enviar;
+   * si no, el correo de contacto registrado al crear el herbario en la plataforma.
+   * Nunca un correo global (.env): con varios herbarios, los mensajes de uno llegarían a otro.
    */
   async feedbackRecipient(): Promise<string> {
     const s = await this.stored();
-    return (
+    const to =
       s.feedbackTo ||
       s.fromEmail ||
       s.user ||
-      this.configService.get<string>('HERBARIO_EMAIL') ||
-      this.configService.get<string>('MAIL_USER') ||
-      DEFAULT_FEEDBACK_TO
-    );
+      TenantContext.current()?.contactEmail;
+    if (to) return to;
+    if (this.configService.get<string>('NODE_ENV') === 'production') {
+      throw new ServiceUnavailableException(
+        'Este herbario todavía no configuró a qué correo llegan los mensajes. Intenta más tarde.',
+      );
+    }
+    // Desarrollo: sin correo configurado, el mensaje solo se muestra en la consola
+    return 'sin-configurar@herbario.local';
   }
 
   // ---------- Configuración (panel del admin) ----------
@@ -262,7 +276,7 @@ export class MailService {
     }
     await this.sendMail({
       to,
-      subject: 'Correo de prueba - Herbario HUAZ',
+      subject: `Correo de prueba - ${herbariumName()}`,
       html: `<h2>¡El correo funciona!</h2><p>Este mensaje confirma que el Herbario puede enviar correos (${smtp.source === 'panel' ? 'configuración del panel' : 'configuración del servidor'}).</p>`,
     });
     return { message: `Correo de prueba enviado a ${to}` };

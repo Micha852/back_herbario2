@@ -22,6 +22,7 @@ import {
   adminChangeError,
   generateTemporaryPassword,
 } from './users-admin.logic';
+import { herbariumName } from '../../tenancy/tenant-context';
 
 const userSelect = {
   id: true,
@@ -142,15 +143,15 @@ export class UsersAdminService {
       await this.mailService.sendMail({
         to,
         subject: isNew
-          ? 'Tu cuenta en el Herbario HUAZ'
-          : 'Nueva contraseña temporal - Herbario HUAZ',
+          ? `Tu cuenta en ${herbariumName()}`
+          : `Nueva contraseña temporal - ${herbariumName()}`,
         html: `
           <h2>${isNew ? 'Bienvenido(a) al Herbario Digital' : 'Restablecimiento de contraseña'}</h2>
           <p>Hola ${escapeHtml(name)},</p>
           <p>${isNew ? 'Un administrador creó tu cuenta.' : 'Un administrador restableció tu contraseña.'}</p>
           <p>Correo: <strong>${escapeHtml(to)}</strong><br>Contraseña temporal: <strong>${password}</strong></p>
           <p>Inicia sesión y cámbiala desde "Mi perfil".</p>
-          <br><p>Herbario Digital - Universidad de la Amazonia</p>
+          <br><p>${escapeHtml(herbariumName())}</p>
         `,
       });
       return true;

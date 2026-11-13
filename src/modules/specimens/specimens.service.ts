@@ -18,6 +18,11 @@ import { SearchSpecimenDto } from './dto/search-specimen.dto';
 import { UpdateSpecimenDto } from './dto/update-specimen.dto';
 import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { TenantContext } from '../../tenancy/tenant-context';
+
+/** Prefijo del número de catálogo: el identificador del herbario en mayúsculas (máx. 20) */
+export const catalogPrefix = () =>
+  (TenantContext.current()?.slug ?? 'HERB').toUpperCase().slice(0, 20);
 
 /** Máximo de muestras listadas por sitio en el mapa (el total va en count) */
 const MAP_GROUP_LIMIT = 50;
@@ -63,18 +68,20 @@ export class SpecimensService {
   };
 
   /**
-   * Generate next catalog number (e.g., HUAZ-000001)
+   * Siguiente número de catálogo: <IDENTIFICADOR DEL HERBARIO>-000001 (huaz → HUAZ-000001,
+   * coah → COAH-000001). Cada herbario tiene su base, así que su propio contador.
    */
   private async generateCatalogNumber(): Promise<string> {
+    const prefix = catalogPrefix();
     // Incremento atómico en la base: dos creaciones simultáneas no reciben el mismo número.
     // Se saltan números ya usados (p. ej. escritos a mano en el formulario).
     for (let attempt = 0; attempt < 1000; attempt++) {
       const counter = await this.prisma.catalogCounter.upsert({
-        where: { prefix: 'HUAZ' },
+        where: { prefix },
         update: { lastNumber: { increment: 1 } },
-        create: { prefix: 'HUAZ', lastNumber: 1 },
+        create: { prefix, lastNumber: 1 },
       });
-      const candidate = `HUAZ-${String(counter.lastNumber).padStart(6, '0')}`;
+      const candidate = `${prefix}-${String(counter.lastNumber).padStart(6, '0')}`;
       const taken = await this.prisma.specimen.findUnique({
         where: { catalogNumber: candidate },
         select: { id: true },

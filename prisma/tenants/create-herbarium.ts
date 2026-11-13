@@ -17,6 +17,7 @@ import { PrismaClient } from '@prisma/client';
 import { spawnSync } from 'child_process';
 import * as path from 'path';
 import {
+  applyDefaultContent,
   arg,
   baseDatabaseUrl,
   DB_NAME_PATTERN,
@@ -87,6 +88,12 @@ run(async () => {
     console.log('• Migraciones…');
     if (!prisma(['migrate', 'deploy'], tenantUrl))
       fail('Las migraciones fallaron (ver arriba)');
+
+    // Base nueva: plantilla neutra del CMS con su nombre (una adoptada conserva su contenido)
+    if (!existing) {
+      await applyDefaultContent(tenantUrl, name, arg('email'));
+      console.log('• Plantilla neutra del sitio aplicada');
+    }
 
     if (adminEmail) {
       console.log('• Primer administrador…');

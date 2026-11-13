@@ -10,6 +10,7 @@ import { createHash, randomInt } from 'crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { escapeHtml } from '../../common/utils/html.util';
+import { herbariumName } from '../../tenancy/tenant-context';
 
 export const CODE_TTL_MINUTES = 15;
 export const MAX_ATTEMPTS = 5;
@@ -61,14 +62,14 @@ export class EmailVerificationService {
 
     await this.mail.sendMail({
       to: params.email,
-      subject: `Tu código de verificación: ${code} - Herbario HUAZ`,
+      subject: `Tu código de verificación: ${code} - ${herbariumName()}`,
       html: `
         <h2>Verifica tu correo</h2>
         <p>Hola ${escapeHtml(params.name)},</p>
         <p>Usa este código para ${escapeHtml(params.action)}:</p>
         <p style="font-size: 28px; font-weight: bold; letter-spacing: 6px">${code}</p>
         <p>Vence en ${CODE_TTL_MINUTES} minutos. Si no lo solicitaste, ignora este correo.</p>
-        <br><p>Herbario Digital - Universidad de la Amazonia</p>
+        <br><p>${escapeHtml(herbariumName())}</p>
       `,
     });
   }

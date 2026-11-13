@@ -294,6 +294,7 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
 ### 2026-11-13
+- **Plantilla neutra para herbarios nuevos:** nada de HUAZ/UDLA por defecto. Back: páginas del CMS (Historia, Datos, Contacto, Términos) con el nombre del herbario al crearlo (plantilla en `prisma/templates/`, la usan el panel y `herbarium:create`), número de catálogo con el identificador del herbario (antes HUAZ fijo), correos con su nombre en asunto y firma, "Escríbenos" llega a su correo (nunca a uno global del .env), PDFs con su nombre si no configuró la colección. Front: logo neutro por defecto (`/images/herbario-logo.svg`), nombre del herbario en header, pie, panel y pestaña; ejemplos de formularios genéricos. 98 unitarios, 46 e2e (el herbario creado nace neutro), front 65.
 - **Dominio raíz = la plataforma (rama `saas`):** `localhost:3000` (o tuplataforma.co) muestra una portada del producto con "Entra a tu herbario" (comprueba que exista y lleva a su subdominio) y acceso discreto a `/plataforma`; las páginas de herbario en la raíz vuelven a la portada y `/plataforma` en un subdominio va al dominio raíz (`proxy.ts` de Next 16, reglas en `lib/platform-routing.ts`). El layout decide plataforma/herbario por el dominio en el servidor. Sin `DEFAULT_HERBARIUM` en desarrollo: HUAZ en `huaz.localhost:3000`. Front: 65 tests.
 
 ### 2026-10-22

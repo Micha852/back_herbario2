@@ -1,7 +1,7 @@
 /**
  * Creación de la base de un herbario desde el panel de la plataforma (en segundo plano):
- * CREATE DATABASE → migraciones (traen roles y catálogos iniciales) → primer administrador
- * → ACTIVE. Si algo falla, el herbario queda FAILED con el motivo y se puede reintentar.
+ * CREATE DATABASE → migraciones (traen roles y catálogos iniciales) → plantilla neutra del
+ * CMS con su nombre → primer administrador → ACTIVE. Si algo falla, el herbario queda FAILED con el motivo y se puede reintentar.
  * (El comando npm run herbarium:create hace lo mismo desde la consola.)
  */
 
@@ -13,6 +13,7 @@ import { PasswordUtil } from '../common/utils/password.util';
 import { MasterPrismaService } from '../tenancy/master-prisma.service';
 import { TenantClientsService } from '../tenancy/tenant-clients.service';
 import { tenantDatabaseUrl } from '../tenancy/tenant-url';
+import { applyDefaultContent } from '../tenancy/default-content';
 import { TenantsService } from '../tenancy/tenants.service';
 import { UserRole } from '../modules/users/enums/user-role.enum';
 
@@ -64,6 +65,12 @@ export class ProvisioningService {
       });
 
       await this.migrate(dbName);
+      // Plantilla neutra (la migración trae textos de HUAZ): cada herbario la edita en su CMS
+      await applyDefaultContent(
+        this.clients.forDatabase(dbName),
+        herbarium.name,
+        herbarium.contactEmail,
+      );
       await this.createAdmin(dbName, admin);
 
       await this.master.herbarium.update({

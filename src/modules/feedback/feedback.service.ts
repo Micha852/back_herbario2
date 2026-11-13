@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { MailService } from '../mail/mail.service';
 import { escapeHtml } from '../../common/utils/html.util';
 import { CreateFeedbackDto } from './dto/create-feedback.dto';
+import { herbariumName } from '../../tenancy/tenant-context';
 
 const SENT = {
   message: 'Mensaje enviado. Te responderemos a tu correo si hace falta.',
@@ -28,13 +29,13 @@ export class FeedbackService {
     }
 
     const sender = account ?? this.guest(dto);
-    // Configurable en el panel (Correo); si no, HERBARIO_EMAIL del .env
+    // Del herbario en curso: panel (Correo) o su correo de contacto en la plataforma
     const herbarioEmail = await this.mailService.feedbackRecipient();
 
     await this.mailService.sendMail({
       to: herbarioEmail,
       replyTo: sender.email,
-      subject: `Mensaje de ${sender.name} - Herbario HUAZ`,
+      subject: `Mensaje de ${sender.name} - ${herbariumName()}`,
       html: `
         <h2>Nuevo mensaje desde "Escríbenos"</h2>
         <p><strong>De:</strong> ${escapeHtml(sender.name)} &lt;${escapeHtml(sender.email)}&gt;
@@ -43,7 +44,7 @@ export class FeedbackService {
         <p style="white-space: pre-line">${escapeHtml(dto.comment)}</p>
         <hr>
         <p><small>Para contestar, responde a este correo: le llega a ${escapeHtml(sender.email)}.<br>
-        Enviado desde el Herbario Digital - Universidad de la Amazonia</small></p>
+        Enviado desde el herbario digital de ${escapeHtml(herbariumName())}</small></p>
       `,
     });
 

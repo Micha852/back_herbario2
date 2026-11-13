@@ -694,6 +694,31 @@ const COLLABORATOR = {
         .set(auth(login.body.accessToken))
         .expect(200);
       expect(list.body.meta.total).toBe(0);
+
+      // Plantilla neutra: su nombre en las páginas del CMS, nada de HUAZ / Uniamazonia
+      const historia = await request(http)
+        .get('/api/v1/system-info/historia')
+        .set('X-Herbario', slug)
+        .expect(200);
+      expect(historia.body.content).toContain('Herbario creado en el e2e');
+      for (const key of ['historia', 'contacto', 'terminos', 'datos']) {
+        const page = await request(http)
+          .get(`/api/v1/system-info/${key}`)
+          .set('X-Herbario', slug)
+          .expect(200);
+        expect(page.body.content).not.toMatch(/HUAZ|UDLA|Uniamazon|Caquet/i);
+      }
+
+      // Su número de catálogo usa su identificador
+      const specimen = await request(http)
+        .post('/api/v1/specimens')
+        .set('X-Herbario', slug)
+        .set(auth(login.body.accessToken))
+        .send({ scientificName: 'Inga edulis' })
+        .expect(201);
+      expect(specimen.body.catalogNumber).toMatch(
+        new RegExp(`^${slug.toUpperCase()}-0+1$`),
+      );
     }, 90_000);
 
     it('suspender (403 al instante) y reactivar', async () => {

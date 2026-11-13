@@ -13,6 +13,8 @@ export interface TenantInfo {
   slug: string;
   name: string;
   dbName: string;
+  /** Correo de contacto registrado en la plataforma (respaldo para avisos del herbario) */
+  contactEmail?: string | null;
 }
 
 const storage = new AsyncLocalStorage<TenantInfo>();
@@ -28,3 +30,7 @@ export const TenantContext = {
     return storage.getStore();
   },
 };
+
+/** Nombre del herbario en curso para correos y PDFs (fuera de un herbario: la plataforma) */
+export const herbariumName = () =>
+  TenantContext.current()?.name ?? 'Herbario Digital';

@@ -23,6 +23,7 @@ const CHANGE_EMAIL_PURPOSE = 'change-email';
 import { LoginResponseDto } from './dto/login.dto';
 import { currentHerbariumSlug, JwtPayload } from './strategies/jwt.strategy';
 import { MailService } from '../mail/mail.service';
+import { herbariumName } from '../../tenancy/tenant-context';
 
 @Injectable()
 export class AuthService {
@@ -192,14 +193,14 @@ export class AuthService {
     try {
       await this.mailService.sendMail({
         to: previous,
-        subject: 'Cambió el correo de tu cuenta - Herbario HUAZ',
+        subject: `Cambió el correo de tu cuenta - ${herbariumName()}`,
         html: `
           <h2>Cambió el correo de tu cuenta</h2>
           <p>Hola ${escapeHtml(name)},</p>
           <p>El correo de tu cuenta del Herbario ahora es <strong>${escapeHtml(current)}</strong>.
           Desde ahora inicias sesión con ese correo.</p>
           <p>Si no hiciste este cambio, contacta al administrador del herbario.</p>
-          <br><p>Herbario Digital - Universidad de la Amazonia</p>
+          <br><p>${escapeHtml(herbariumName())}</p>
         `,
       });
     } catch {
@@ -267,7 +268,7 @@ export class AuthService {
     try {
       await this.mailService.sendMail({
         to: user.email,
-        subject: 'Recuperación de contraseña - Herbario HUAZ',
+        subject: `Recuperación de contraseña - ${herbariumName()}`,
         html: `
           <h2>Recuperación de contraseña</h2>
           <p>Hola ${escapeHtml(user.name)},</p>
@@ -275,7 +276,7 @@ export class AuthService {
           <p>Inicia sesión y cámbiala desde "Mi perfil".</p>
           <p>Tu contraseña anterior ya no funciona. Si no solicitaste este cambio, contacta al administrador del herbario.</p>
           <br>
-          <p>Herbario Digital - Universidad de la Amazonia</p>
+          <p>${escapeHtml(herbariumName())}</p>
         `,
       });
     } catch {

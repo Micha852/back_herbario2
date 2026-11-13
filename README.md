@@ -124,6 +124,7 @@ El panel está en `/plataforma` del front (en el dominio raíz) y su API en `/ap
 - Los administradores de la plataforma viven en la master y tienen otro tipo de token. Un token de plataforma no sirve en un herbario, ni al revés.
 - El primero se crea por consola: `npm run platform:create-admin -- --email yo@correo.co --name "Nombre"`.
 - Al crear un herbario, la contraseña temporal de su administrador se muestra una sola vez.
+- Cada herbario nuevo arranca con una **plantilla neutra**: páginas del CMS con su nombre (`prisma/templates/herbarium-content.json`), logo genérico, números de catálogo con su identificador (`COAH-000001`) y correos y PDF firmados con su nombre. Luego cada herbario lo personaliza desde su CMS.
 - El límite de intentos cuenta por IP **y por herbario**: los visitantes de un herbario no gastan el cupo de otro.
 
 **Front:** llama a `/api` en su mismo dominio. En producción nginx lleva `/api` al back; en desarrollo lo reenvía Next (`next.config.ts`, `BACKEND_URL`). En los dos casos el back recibe el subdominio y sabe de qué herbario es.

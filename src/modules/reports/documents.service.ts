@@ -28,6 +28,7 @@ import {
   collectorReportXlsx,
 } from './pdf/collector-report';
 import { formatDate } from './pdf/pdf-kit';
+import { herbariumName } from '../../tenancy/tenant-context';
 
 export interface DownloadFile {
   buffer: Buffer;
@@ -79,7 +80,7 @@ export class DocumentsService {
     return (
       [s.institutionCode, s.collectionCode && `Colección ${s.collectionCode}`]
         .filter(Boolean)
-        .join(' · ') || 'Herbario Digital'
+        .join(' · ') || herbariumName()
     );
   }
 
@@ -178,7 +179,7 @@ export class DocumentsService {
       (settings.collectionCode
         ? `HERBARIO ${settings.collectionCode}`
         : settings.institutionCode.toUpperCase()) ||
-      'HERBARIO';
+      herbariumName().toUpperCase();
 
     const buffer = await herbariumLabelPdf(specimen, {
       title,

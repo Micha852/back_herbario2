@@ -1,0 +1,117 @@
+{
+  "historia": {
+    "title": "Historia del Herbario",
+    "content": {
+      "introduccion": "{{nombre}} preserva y comparte el conocimiento sobre la diversidad vegetal a través de su colección de muestras botánicas, ahora disponible en línea.",
+      "mision": "Catalogar, preservar y difundir el conocimiento sobre la flora, apoyando la investigación científica, la educación ambiental y la conservación de la biodiversidad.",
+      "vision": "Ser un referente en el estudio y la documentación de la flora, facilitando el acceso al conocimiento botánico mediante herramientas digitales.",
+      "objetivos": [
+        "Documentar la diversidad florística de nuestra región",
+        "Facilitar el acceso a la información botánica en línea",
+        "Apoyar la investigación científica y la educación ambiental",
+        "Contribuir a la conservación de especies de importancia ecológica y cultural"
+      ],
+      "historia": "Cuenta aquí la historia de {{nombre}}: cuándo y cómo nació la colección, quiénes la han construido y cómo ha crecido. (Edítalo en Panel → CMS → Historia.)",
+      "importancia": "Cada muestra de la colección es un registro de la biodiversidad. Publicarlas permite que investigadores, estudiantes y comunidades las consulten y las usen."
+    }
+  },
+  "datos": {
+    "title": "Datos y Estadísticas",
+    "content": {
+      "estadisticas": { "muestras": 0, "familias": 0, "municipios": 0 },
+      "cobertura": {
+        "titulo": "Áreas de Cobertura",
+        "descripcion": "Describe de qué regiones provienen las muestras de la colección."
+      },
+      "especimenes": {
+        "titulo": "Tipos de Especímenes",
+        "descripcion": "Describe qué tipo de plantas y ecosistemas predominan en la colección."
+      },
+      "actualizacion": {
+        "titulo": "Actualización",
+        "descripcion": "La colección se actualiza a medida que se registran nuevas muestras."
+      },
+      "acceso": {
+        "titulo": "Acceso a la Información",
+        "descripcion": "La información publicada en este herbario digital es de acceso público y gratuito."
+      }
+    }
+  },
+  "contacto": {
+    "title": "Información de Contacto",
+    "content": {
+      "institucion": "{{nombre}}",
+      "direccion": "",
+      "email": "{{correo}}",
+      "telefono": "",
+      "sitioWeb": "",
+      "horarios": {
+        "lunesViernes": "",
+        "finDeSemana": "",
+        "nota": ""
+      },
+      "redesSociales": { "facebook": "", "instagram": "" }
+    }
+  },
+  "terminos": {
+    "title": "Términos y Condiciones de Uso",
+    "content": {
+      "ultimaActualizacion": "{{fecha}}",
+      "secciones": [
+        {
+          "titulo": "1. Aceptación de los Términos",
+          "contenido": "Al acceder y utilizar el herbario digital de {{nombre}}, usted acepta cumplir con estos términos y condiciones de uso. Si no está de acuerdo con alguna parte de estos términos, no debe utilizar este servicio."
+        },
+        {
+          "titulo": "2. Uso de la Información",
+          "contenido": "La información de este herbario digital se ofrece con fines educativos y de investigación. Los usuarios pueden:",
+          "items": [
+            "Consultar libremente la información de las muestras botánicas",
+            "Descargar información para uso académico y de investigación",
+            "Citar el herbario en publicaciones científicas con la debida atribución"
+          ]
+        },
+        {
+          "titulo": "3. Restricciones de Uso",
+          "contenido": "Los usuarios NO pueden:",
+          "items": [
+            "Usar la información con fines comerciales sin autorización previa",
+            "Modificar o alterar la información sin consentimiento",
+            "Redistribuir la base de datos completa sin permiso",
+            "Realizar actividades que comprometan la integridad del sistema"
+          ]
+        },
+        {
+          "titulo": "4. Propiedad Intelectual",
+          "contenido": "El contenido de este herbario digital, incluyendo imágenes, textos y datos taxonómicos, es propiedad de {{nombre}} o de sus colaboradores, y está protegido por las leyes de propiedad intelectual."
+        },
+        {
+          "titulo": "5. Registro de Usuarios",
+          "contenido": "Para acceder a funcionalidades adicionales, los usuarios deben registrarse con información veraz y actualizada, y son responsables de la confidencialidad de sus credenciales."
+        },
+        {
+          "titulo": "6. Privacidad y Protección de Datos",
+          "contenido": "{{nombre}} protege la privacidad de sus usuarios conforme a la Ley 1581 de 2012 de Protección de Datos Personales de Colombia. La información personal se usa únicamente para los fines del herbario y no se comparte con terceros sin consentimiento."
+        },
+        {
+          "titulo": "7. Exactitud de la Información",
+          "contenido": "Aunque procuramos mantener la información actualizada y precisa, no garantizamos la exactitud, completitud o vigencia de todos los datos. Verifique la información crítica con fuentes adicionales."
+        },
+        {
+          "titulo": "8. Citación y Atribución",
+          "contenido": "Al utilizar información del herbario en publicaciones o investigaciones, cítela así:",
+          "citacion": "{{nombre}}. Herbario digital. [Fecha de consulta]. Disponible en: [URL]"
+        },
+        {
+          "titulo": "9. Modificaciones a los Términos",
+          "contenido": "{{nombre}} puede modificar estos términos en cualquier momento. Los cambios se publican en esta página y rigen desde su publicación."
+        },
+        {
+          "titulo": "10. Contacto",
+          "contenido": "Para preguntas sobre estos términos y condiciones, escríbanos desde la página de Contacto.",
+          "contacto": { "email": "{{correo}}", "institucion": "{{nombre}}", "ubicacion": "" }
+        }
+      ]
+    }
+  }
+}
