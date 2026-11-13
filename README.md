@@ -129,9 +129,10 @@ El panel está en `/plataforma` del front (en el dominio raíz) y su API en `/ap
 **Front:** llama a `/api` en su mismo dominio. En producción nginx lleva `/api` al back; en desarrollo lo reenvía Next (`next.config.ts`, `BACKEND_URL`). En los dos casos el back recibe el subdominio y sabe de qué herbario es.
 
 En desarrollo:
-- `localhost:3000` → herbario por defecto (`DEFAULT_HERBARIUM`)
-- `coah.localhost:3000` → herbario `coah`
-- `localhost:3000/plataforma` → el panel
+- `localhost:3000` → portada de la plataforma (dominio raíz; el proxy de Next, `proxy.ts`, decide por el dominio)
+- `localhost:3000/plataforma` → el panel de la plataforma
+- `huaz.localhost:3000`, `coah.localhost:3000` → cada herbario
+- `DEFAULT_HERBARIUM` solo para una instalación de un único herbario sin subdominios
 
 ## Variables de entorno
 

@@ -293,6 +293,9 @@ Pedidas en los documentos de HDUA 1.0 pero que tampoco estaban implementadas:
 
 Registro de avances (lo más reciente arriba). El detalle de cada cambio está en el historial de git.
 
+### 2026-11-13
+- **Dominio raíz = la plataforma (rama `saas`):** `localhost:3000` (o tuplataforma.co) muestra una portada del producto con "Entra a tu herbario" (comprueba que exista y lleva a su subdominio) y acceso discreto a `/plataforma`; las páginas de herbario en la raíz vuelven a la portada y `/plataforma` en un subdominio va al dominio raíz (`proxy.ts` de Next 16, reglas en `lib/platform-routing.ts`). El layout decide plataforma/herbario por el dominio en el servidor. Sin `DEFAULT_HERBARIUM` en desarrollo: HUAZ en `huaz.localhost:3000`. Front: 65 tests.
+
 ### 2026-10-22
 - **Multitenant F2 (rama `saas`):** panel de la plataforma y front multi-herbario. Crear un herbario completo tarda ~3 s (base, 15 migraciones, catálogos, admin). Probado de punta a punta: API de plataforma 25/25 (tokens que no se cruzan, crear hasta ACTIVE, suspender/reactivar, validaciones) y a través de Next: huaz/coah/inexistente por subdominio, imágenes por herbario. Corregido: el límite de intentos se contaba por IP sumando todos los herbarios (un campus detrás de una IP gastaba el cupo de login de todos). 92 unitarios, 46 e2e (crear herbario real incluido), front 57.
 
