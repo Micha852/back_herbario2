@@ -29,6 +29,7 @@ import {
 } from './pdf/collector-report';
 import { formatDate } from './pdf/pdf-kit';
 import { herbariumName } from '../../tenancy/tenant-context';
+import { tenantAppUrl } from '../../tenancy/tenant-app-url';
 
 export interface DownloadFile {
   buffer: Buffer;
@@ -123,7 +124,9 @@ export class DocumentsService {
       }
     }
 
-    const appUrl = this.config.get<string>('APP_URL')?.replace(/\/$/, '');
+    // Enlace a la ficha pública en el sitio de este herbario (solo si APP_URL está configurada)
+    const configured = this.config.get<string>('APP_URL');
+    const appUrl = configured ? tenantAppUrl(configured) : null;
     const buffer = await specimenSheetPdf(specimen, {
       collection: await this.collectionName(),
       image,

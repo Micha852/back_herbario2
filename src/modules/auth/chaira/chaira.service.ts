@@ -9,7 +9,11 @@
  *   los ingresos con Chairá. Quien quiera conservar su cuenta la completa con correo y
  *   contraseña ("Completar mi cuenta", con código de verificación).
  * - El `state` va firmado y con vencimiento: el regreso solo se acepta si salió de aquí.
- * - Se puede apagar quitando CHAIRA_CLIENT_ID del .env.
+ * - Es de la Universidad de la Amazonia: solo se ofrece en los herbarios de CHAIRA_HERBARIA
+ *   (ej. "huaz") y si hay CHAIRA_CLIENT_ID. En los demás no aparece el botón.
+ * - El regreso (CHAIRA_REDIRECT_URI) debe llegar por la dirección del herbario
+ *   (https://huaz.<dominio>/api/v1/auth/chaira/callback) para saber a cuál pertenece, y el
+ *   state lleva el herbario: uno firmado en otro herbario no sirve.
  * Ver ROADMAP_GENERAL.md (ideas futuras) para la versión completa con OAuth2.
  */
 
@@ -30,6 +34,12 @@ import { UsersService } from '../../users/users.service';
 import { UserRole } from '../../users/enums/user-role.enum';
 import { AuthService } from '../auth.service';
 import { CHAIRA_EMAIL_DOMAIN, CHAIRA_PROVIDER } from './chaira.constants';
+import { TenantContext } from '../../../tenancy/tenant-context';
+import {
+  DEV_APP_URL,
+  slugList,
+  tenantAppUrl,
+} from '../../../tenancy/tenant-app-url';
 import {
   assertEmailFree,
   withEmailConflict,
@@ -44,6 +54,8 @@ const STATE_AUDIENCE = 'chaira-state';
 interface StatePayload {
   /** Nonce: cada inicio de sesión tiene su propio state */
   n: string;
+  /** Herbario donde empezó el ingreso */
+  hb: string;
 }
 
 @Injectable()
@@ -59,20 +71,30 @@ export class ChairaService {
     private verification: EmailVerificationService,
   ) {}
 
+  /** Solo en los herbarios de CHAIRA_HERBARIA y con CHAIRA_CLIENT_ID */
   get enabled(): boolean {
-    return !!this.config.get<string>('CHAIRA_CLIENT_ID');
+    const slug = TenantContext.current()?.slug;
+    return (
+      !!slug &&
+      !!this.config.get<string>('CHAIRA_CLIENT_ID') &&
+      slugList(this.config.get<string>('CHAIRA_HERBARIA')).has(slug)
+    );
   }
 
+  /** Front del herbario actual (APP_URL con {herbario}) */
   private get appUrl() {
     return (
-      this.config.get<string>('APP_URL') ?? 'http://localhost:3000'
-    ).replace(/\/$/, '');
+      tenantAppUrl(this.config.get<string>('APP_URL') ?? DEV_APP_URL) ?? ''
+    );
   }
 
   /** URL de Chairá a la que se manda al usuario */
   authorizationUrl(): string {
     const state = this.jwt.sign(
-      { n: randomBytes(8).toString('hex') } satisfies StatePayload,
+      {
+        n: randomBytes(8).toString('hex'),
+        hb: TenantContext.current()?.slug ?? '',
+      } satisfies StatePayload,
       { audience: STATE_AUDIENCE, expiresIn: '10m' },
     );
     const params = new URLSearchParams({
@@ -97,7 +119,12 @@ export class ChairaService {
    */
   async handleCallback(state?: string, code?: string): Promise<string> {
     try {
-      this.jwt.verify<StatePayload>(state ?? '', { audience: STATE_AUDIENCE });
+      const payload = this.jwt.verify<StatePayload>(state ?? '', {
+        audience: STATE_AUDIENCE,
+      });
+      if (payload.hb !== TenantContext.current()?.slug) {
+        return this.errorUrl('invalido');
+      }
     } catch {
       return this.errorUrl('invalido');
     }

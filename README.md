@@ -124,7 +124,8 @@ El panel está en `/plataforma` del front (en el dominio raíz) y su API en `/ap
 - Los administradores de la plataforma viven en la master y tienen otro tipo de token. Un token de plataforma no sirve en un herbario, ni al revés.
 - El primero se crea por consola: `npm run platform:create-admin -- --email yo@correo.co --name "Nombre"`.
 - Al crear un herbario, la contraseña temporal de su administrador se muestra una sola vez.
-- Cada herbario nuevo arranca con una **plantilla neutra**: páginas del CMS con su nombre (`prisma/templates/herbarium-content.json`), logo genérico, números de catálogo con su identificador (`COAH-000001`) y correos y PDF firmados con su nombre. Luego cada herbario lo personaliza desde su CMS.
+- Cada herbario nuevo arranca con una **plantilla neutra**: páginas del CMS con su nombre (`prisma/templates/herbarium-content.json`), logo genérico, números de catálogo con su identificador (`COAH-000001`) y correos y PDF firmados con su nombre, fondo de naturaleza genérico (`/images/fondo-naturaleza.svg`). Luego cada herbario lo personaliza desde su CMS.
+- Todos traen los 33 departamentos y 1.122 municipios de Colombia (DIVIPOLA del DANE, migración `divipola_colombia`).
 - El límite de intentos cuenta por IP **y por herbario**: los visitantes de un herbario no gastan el cupo de otro.
 
 **Front:** llama a `/api` en su mismo dominio. En producción nginx lleva `/api` al back; en desarrollo lo reenvía Next (`next.config.ts`, `BACKEND_URL`). En los dos casos el back recibe el subdominio y sabe de qué herbario es.
@@ -143,9 +144,10 @@ Están todas en [`.env.example`](.env.example), con su explicación. Las princip
 |---|---|
 | `DATABASE_URL` | Conexión a PostgreSQL (obligatoria) |
 | `JWT_SECRET`, `JWT_REFRESH_SECRET` | Firmas de las sesiones (obligatorias y distintas) |
-| `CORS_ORIGIN`, `APP_URL` | URL del front (CORS y enlaces en los correos) |
+| `CORS_ORIGIN` | URL del front (CORS) |
+| `APP_URL` | URL pública del front de cada herbario: `{herbario}` se cambia por su identificador (`https://{herbario}.tudominio.co`). Enlace de las fichas PDF y regreso de Chairá |
 | `MAIL_*` | SMTP. Opcional si se configura desde el panel |
-| `CHAIRA_*` | Ingreso con Chairá. Sin `CHAIRA_CLIENT_ID` el botón no aparece |
+| `CHAIRA_*` | Ingreso con Chairá (Universidad de la Amazonia). Solo en los herbarios de `CHAIRA_HERBARIA` (ej. `huaz`) y con `CHAIRA_CLIENT_ID`; si no, el botón no aparece. `CHAIRA_REDIRECT_URI` entra por la dirección del herbario |
 | `SETTINGS_ENCRYPTION_KEY` | Cifra la contraseña SMTP guardada en la base. Si no está, se usa `JWT_SECRET` |
 
 ## Pruebas
